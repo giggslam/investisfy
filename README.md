@@ -31,3 +31,25 @@ horizon the window length, return %, momentum value and score, plus a
 `composite_score` (mean of the three) and a `trend` flag (UP_ALL / DOWN_ALL / MIXED).
 
 Generated files: `sp500_momentum.csv` (2025-01-01 .. today) and `sp500_momentum_2026.csv` (2026 YTD only).
+
+### Point-in-time history and hindsight calibration
+
+```bash
+python sp500_momentum.py --asof 2026-04-08      # snapshot exactly as it looked on that day (no look-ahead)
+python sp500_momentum.py --mode history         # daily scores for every stock + calibration + IC tables
+python sp500_momentum.py --mode both --step 5   # sample the history every 5 trading days
+```
+
+`history` mode recomputes the three momentum measures and cross-sectional scores for
+**every trading day using only prices up to that day**, then attaches the realised
+forward return 21 and 63 trading days later (`--fwd`). Horizons use strict windows
+(21/63/252 observations), so the long score starts one year after the first price.
+
+| File | Content |
+|------|---------|
+| `<stem>_history.csv` | one row per (date, stock): close, short/medium/long return, momentum, score, composite, `fwd_21d_pct`, `fwd_63d_pct` (not committed, ~28 MB; regenerate with the command above) |
+| `<stem>_calibration.csv` | per horizon and score bucket: n, mean/median forward return, hit rate (% > 0), continuation rate (% same sign as the score), excess vs the universe mean on the same dates, p10/p90 |
+| `<stem>_ic.csv` | information coefficient: mean daily Spearman rank correlation between each measure and the forward return, std, t-stat, % positive days |
+| `<stem>_ic_daily.csv` | the daily IC series behind the summary |
+
+Downloaded prices are cached in `prices_cache.csv` (ignored by git); pass `--cache ''` to disable.

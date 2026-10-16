@@ -205,3 +205,7 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# downloaded price cache (regenerate with sp500_momentum.py)
+prices_cache.csv
+sp500_momentum_history.csv
