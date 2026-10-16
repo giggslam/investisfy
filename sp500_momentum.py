@@ -5,11 +5,13 @@ S&P 500 momentum scorer (2026 YTD).
 Pipeline
 --------
 1. Fetch the current S&P 500 constituent list (GitHub dataset, Wikipedia fallback).
-2. Download daily adjusted close prices from 2026-01-01 to today (Yahoo Finance via yfinance).
+2. Download daily adjusted close prices from 2025-01-01 to today (Yahoo Finance via yfinance).
 3. Using realised (ex-post) prices, measure each stock's momentum over three horizons:
-       short  = last 21 trading days  (~1 month)
-       medium = last 63 trading days  (~3 months)
-       long   = whole period since the first trading day of 2026 (YTD)
+       short  = last 21 trading days   (~1 month)
+       medium = last 63 trading days   (~3 months)
+       long   = last 252 trading days  (~1 year; capped at the data available)
+   Per-calendar-year returns (ret_2025_pct, ret_2026_pct, ...) and the full-period
+   return are also reported.
 4. Score each horizon cross-sectionally:
        rising  stocks ->  +1 (slowest rise)  ... +10 (fastest rise)
        falling stocks ->  -1 (slowest fall)  ... -10 (fastest fall)
@@ -29,9 +31,9 @@ regression  : annualised slope of a linear regression on log(price) multiplied b
 Usage
 -----
     pip install -r requirements.txt
-    python sp500_momentum.py                      # 2026-01-01 .. today -> sp500_momentum_2026.csv
+    python sp500_momentum.py                      # 2025-01-01 .. today -> sp500_momentum.csv
     python sp500_momentum.py --method regression  # smoother momentum measure
-    python sp500_momentum.py --start 2026-01-01 --end 2026-10-16 --out my.csv
+    python sp500_momentum.py --start 2026-01-01 --long 0 --out sp500_momentum_2026.csv  # 2026 only, long = YTD
 """
 
 from __future__ import annotations
@@ -55,10 +57,10 @@ CONSTITUENTS_URLS = [
 WIKIPEDIA_URL = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
 UA = {"User-Agent": "Mozilla/5.0 (compatible; sp500-momentum/1.0)"}
 
-HORIZONS = {  # name -> trading days (None = whole period / YTD)
+HORIZONS = {  # name -> trading days (None = whole period)
     "short": 21,
     "medium": 63,
-    "long": None,
+    "long": 252,
 }
 
 
@@ -246,11 +248,18 @@ def build_table(
             "end_date": s.index[-1].date().isoformat(),
             "end_price": round(float(s.iloc[-1]), 4),
             "trading_days": int(len(s)),
-            "ytd_return_pct": round(momentum_return(s), 2),
+            "full_return_pct": round(momentum_return(s), 2),
             "period_high": round(float(s.max()), 4),
             "period_low": round(float(s.min()), 4),
             "max_drawdown_pct": round(float(((s / s.cummax()) - 1).min() * 100), 2),
         }
+        # Calendar-year returns: from the last close of the prior year (or the first
+        # available close) to the last close of that year.
+        for yr in sorted(set(s.index.year)):
+            prev = s[s.index.year < yr]
+            base = float(prev.iloc[-1]) if len(prev) else float(s[s.index.year == yr].iloc[0])
+            last = float(s[s.index.year == yr].iloc[-1])
+            row[f"ret_{yr}_pct"] = round((last / base - 1.0) * 100.0, 2)
         daily = s.pct_change().dropna()
         row["ann_volatility_pct"] = round(float(daily.std() * math.sqrt(252) * 100), 2) if len(daily) > 1 else np.nan
         for name, days in HORIZONS.items():
@@ -282,12 +291,13 @@ def build_table(
 # --------------------------------------------------------------------------- #
 def parse_args(argv: Iterable[str] | None = None) -> argparse.Namespace:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("--start", default="2026-01-01", help="first date (YYYY-MM-DD), default 2026-01-01")
+    p.add_argument("--start", default="2025-01-01", help="first date (YYYY-MM-DD), default 2025-01-01")
     p.add_argument("--end", default=dt.date.today().isoformat(), help="last date (YYYY-MM-DD), default today")
-    p.add_argument("--out", default="sp500_momentum_2026.csv", help="output CSV path")
+    p.add_argument("--out", default="sp500_momentum.csv", help="output CSV path")
     p.add_argument("--method", choices=["return", "regression"], default="return", help="momentum measure")
     p.add_argument("--short", type=int, default=21, help="short horizon in trading days (default 21)")
     p.add_argument("--medium", type=int, default=63, help="medium horizon in trading days (default 63)")
+    p.add_argument("--long", type=int, default=252, help="long horizon in trading days (default 252; 0 = whole period)")
     p.add_argument("--limit", type=int, default=None, help="only process the first N symbols (testing)")
     return p.parse_args(argv)
 
@@ -296,6 +306,7 @@ def main(argv: Iterable[str] | None = None) -> int:
     args = parse_args(argv)
     HORIZONS["short"] = args.short
     HORIZONS["medium"] = args.medium
+    HORIZONS["long"] = args.long or None
 
     cons = fetch_constituents()
     if args.limit:
@@ -313,7 +324,8 @@ def main(argv: Iterable[str] | None = None) -> int:
     for name in HORIZONS:
         sc = table[f"{name}_score"]
         print(f"  {name:6s}: up={int((sc > 0).sum()):3d}  down={int((sc < 0).sum()):3d}  flat={int((sc == 0).sum())}")
-    cols = ["Symbol", "short_score", "medium_score", "long_score", "composite_score", "ytd_return_pct"]
+    yr_cols = [c for c in table.columns if c.startswith("ret_")]
+    cols = ["Symbol", "short_score", "medium_score", "long_score", "composite_score", *yr_cols]
     print("\nTop 10 composite:\n", table[cols].head(10).to_string(index=False))
     print("\nBottom 10 composite:\n", table[cols].tail(10).to_string(index=False))
     return 0
