@@ -5,7 +5,7 @@ S&P 500 momentum scorer (2026 YTD).
 Pipeline
 --------
 1. Fetch the current S&P 500 constituent list (GitHub dataset, Wikipedia fallback).
-2. Download daily adjusted close prices from 2025-01-01 to today (Yahoo Finance via yfinance).
+2. Download daily adjusted close prices from 2024-01-01 to today (Yahoo Finance via yfinance).
 3. Using realised (ex-post) prices, measure each stock's momentum over three horizons:
        short  = last 21 trading days   (~1 month)
        medium = last 63 trading days   (~3 months)
@@ -47,7 +47,7 @@ regression  : annualised slope of a linear regression on log(price) multiplied b
 Usage
 -----
     pip install -r requirements.txt
-    python sp500_momentum.py                      # 2025-01-01 .. today -> sp500_momentum.csv
+    python sp500_momentum.py                      # 2024-01-01 .. today -> sp500_momentum.csv
     python sp500_momentum.py --method regression  # smoother momentum measure
     python sp500_momentum.py --start 2026-01-01 --long 0 --out sp500_momentum_2026.csv  # 2026 only, long = YTD
     python sp500_momentum.py --asof 2026-03-31            # snapshot as it looked on 2026-03-31
@@ -512,7 +512,7 @@ def print_calibration(cal: pd.DataFrame, fwd: str) -> None:
 # --------------------------------------------------------------------------- #
 def parse_args(argv: Iterable[str] | None = None) -> argparse.Namespace:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("--start", default="2025-01-01", help="first date (YYYY-MM-DD), default 2025-01-01")
+    p.add_argument("--start", default="2024-01-01", help="first date (YYYY-MM-DD), default 2024-01-01")
     p.add_argument("--end", default=dt.date.today().isoformat(), help="last date (YYYY-MM-DD), default today")
     p.add_argument("--out", default="sp500_momentum.csv", help="output CSV path (history files use its stem)")
     p.add_argument("--method", choices=["return", "regression"], default="return", help="momentum measure")
