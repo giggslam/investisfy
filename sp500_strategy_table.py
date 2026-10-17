@@ -36,6 +36,16 @@ CURATED = [
     ("sp500_backtest_long_equity.csv", "C_5pos_63d_nostop", "選股 C：double_10，5 隻，63 日，無停損", "選股（第六、七節）", "輸基準"),
     ("sp500_beat_qqq_equity.csv", "stocks_rev_short_m10_5pos_63d+regime", "選股：短期 -10 反轉，5 隻 + QQQ 200 日線濾網", "選股 + 濾網（9.2）", "輸基準"),
     ("sp500_beat_qqq_equity.csv", "stocks_double10_5pos_63d_stop12+regime", "選股 A + QQQ 200 日線濾網", "選股 + 濾網（9.2）", "輸基準"),
+    ("sp500_top5_monthly_equity.csv", "medium_top5", "每月換成中期 63 日動能前 5 隻", "選股（第 15 節）", "輸基準，不高於隨機"),
+    ("sp500_top5_monthly_equity.csv", "long_top5", "每月換成長期 252 日動能前 5 隻", "選股（第 15 節）", "同上"),
+    ("sp500_top5_monthly_equity.csv", "12_1_top5", "每月換成 12-1 動能前 5 隻", "選股（第 15 節）", "同上"),
+    ("sp500_top5_monthly_equity.csv", "12_1_top20", "每月換成 12-1 動能前 20 隻", "選股（第 15 節）", "追平 SPY"),
+    ("sp500_top5_monthly_equity.csv", "short_top5_r200", "每月短期 21 日前 5 隻 + QQQ 200 日線濾網", "選股 + 濾網（15.6）", "勝 SPY，優勢全在 2000 年代"),
+    ("sp500_top5_monthly_equity.csv", "medium_top5_r200", "每月中期 63 日前 5 隻 + QQQ 200 日線濾網", "選股 + 濾網（15.6）", "同上，最佳"),
+    ("sp500_top5_monthly_equity.csv", "long_top5_r200", "每月長期 252 日前 5 隻 + QQQ 200 日線濾網", "選股 + 濾網（15.6）", "同上"),
+    ("sp500_top5_monthly_equity.csv", "12_1_top5_r200", "每月 12-1 前 5 隻 + QQQ 200 日線濾網", "選股 + 濾網（15.6）", "同上，2020 後落後"),
+    ("sp500_top5_monthly_equity.csv", "composite_top5_r200", "每月三階段合計前 5 隻 + QQQ 200 日線濾網", "選股 + 濾網（15.6）", "輸基準"),
+    ("sp500_top5_monthly_equity.csv", "equal_weight_members_r200", "成員等權（每月）+ QQQ 200 日線濾網", "選股 + 濾網（15.6）", "濾網使等權變差"),
     ("sp500_beat_qqq_equity.csv", "qqq_sma_200_monthly", "QQQ > 200 日線，月底評估，否則國庫券", "全進全出擇時（9.2）", "回撤減半，多頭中段輸 QQQ"),
     ("sp500_beat_qqq_equity.csv", "qqq_sma_250", "QQQ > 250 日線", "全進全出擇時（9.2）", "同上"),
     ("sp500_beat_qqq_equity.csv", "qqq_sma_200_dd_15", "QQQ > 200 日線且距高點 15% 內", "全進全出擇時（9.2）", "回撤最小，報酬較低"),
@@ -73,7 +83,7 @@ def metrics(nav: pd.Series) -> dict:
 
 def load_all() -> dict[str, pd.Series]:
     curves: dict[str, pd.Series] = {}
-    for f in ("sp500_backtest_long_equity.csv", "sp500_beat_qqq_equity.csv", "sp500_optimize_qqq_equity.csv", "sp500_optimize_qqq2_equity.csv"):
+    for f in ("sp500_backtest_long_equity.csv", "sp500_beat_qqq_equity.csv", "sp500_optimize_qqq_equity.csv", "sp500_optimize_qqq2_equity.csv", "sp500_top5_monthly_equity.csv"):
         if not os.path.exists(f):
             continue
         df = pd.read_csv(f, index_col=0, parse_dates=True)
@@ -148,8 +158,64 @@ def main() -> int:
         if col in ("qqq_sma_200_monthly", "qqq_sma_200_dd_15", "voltarget_30_21", "combo_ratio+vt_floor50", "ratio_1.5_10_63") and s.index[-1] >= SHORT_END - pd.Timedelta(days=5):
             w = s.loc[SHORT_START:SHORT_END]; m = metrics(w / w.iloc[0])
             nm = {k[1]: k[2] for k in CURATED}.get(col, col); short_rows.append({"名稱": nm, "類別": "QQQ 擇時 / 波動率目標", **m})
+    if os.path.exists("sp500_top5_monthly_equity_2025_2026.csv"):
+        t5 = pd.read_csv("sp500_top5_monthly_equity_2025_2026.csv", index_col=0, parse_dates=True)
+        names5 = {k[1]: k[2] for k in CURATED}
+        for col in ("medium_top5_r200", "long_top5_r200", "short_top5_r200", "12_1_top5_r200", "long_top5", "medium_top5"):
+            if col in t5:
+                w = t5[col].dropna(); m = metrics(w / w.iloc[0])
+                short_rows.append({"名稱": names5.get(col, col) + "（今日名單，2025-02-03 起）", "類別": "選股（第 15 節）", **m})
     short = pd.DataFrame(short_rows).drop_duplicates("名稱").sort_values("CAGR_pct", ascending=False)
     short.to_csv("strategy_table_2025_2026.csv", index=False, encoding="utf-8-sig")
+
+    # ---- 12.5 yearly returns 2000 .. today and total return
+    YEARLY = [  # (long source, long column, short source or None, short column, display name)
+        ("sp500_beat_qqq_equity.csv", "QQQ_buy_hold", None, None, "QQQ"),
+        ("sp500_beat_qqq_equity.csv", "SPY_buy_hold", None, None, "SPY"),
+        ("sp500_backtest_long_equity.csv", "equal_weight_members", "benchmark_compare_short_equity.csv", "成份股等權", "成員等權*"),
+        ("sp500_backtest_long_equity.csv", "A_max_return_5pos_63d_stop12", "benchmark_compare_short_equity.csv", "A 最大報酬版", "選股 A*"),
+        ("sp500_backtest_long_equity.csv", "B_robust_4pos_126cap_shortneg", "benchmark_compare_short_equity.csv", "B 穩健版", "選股 B*"),
+        ("sp500_backtest_long_equity.csv", "C_5pos_63d_nostop", None, None, "選股 C"),
+        ("sp500_top5_monthly_equity.csv", "medium_top5", "sp500_top5_monthly_equity_2025_2026.csv", "medium_top5", "每月中期前 5*"),
+        ("sp500_top5_monthly_equity.csv", "medium_top5_r200", "sp500_top5_monthly_equity_2025_2026.csv", "medium_top5_r200", "每月中期前 5 + 濾網*"),
+        ("sp500_top5_monthly_equity.csv", "short_top5_r200", "sp500_top5_monthly_equity_2025_2026.csv", "short_top5_r200", "每月短期前 5 + 濾網*"),
+        ("sp500_top5_monthly_equity.csv", "long_top5_r200", "sp500_top5_monthly_equity_2025_2026.csv", "long_top5_r200", "每月長期前 5 + 濾網*"),
+        ("sp500_top5_monthly_equity.csv", "12_1_top20", "sp500_top5_monthly_equity_2025_2026.csv", "12_1_top20", "每月 12-1 前 20*"),
+        ("sp500_beat_qqq_equity.csv", "qqq_sma_200_monthly", None, None, "QQQ 200 日線月底"),
+        ("sp500_beat_qqq_equity.csv", "qqq_sma_200_dd_15", None, None, "QQQ 200 日線 + 15% 回撤"),
+        ("sp500_optimize_qqq_equity.csv", "voltarget_30_21", None, None, "波動率目標 30/21"),
+        ("sp500_optimize_qqq_equity.csv", "voltarget_20_63", None, None, "波動率目標 20/63"),
+        ("sp500_optimize_qqq2_equity.csv", "ratio_1.5_10_63", None, None, "波動擴張"),
+        ("sp500_optimize_qqq2_equity.csv", "combo_ratio+vt_floor50", None, None, "組合規則"),
+    ]
+    stitched: dict[str, pd.Series] = {}
+    starts: dict[str, str] = {}
+    for src, col, ssrc, scol, name in YEARLY:
+        long = pd.read_csv(src, index_col=0, parse_dates=True)[col].dropna()
+        long = long / long.iloc[0]
+        if ssrc and os.path.exists(ssrc):
+            sh2 = pd.read_csv(ssrc, index_col=0, parse_dates=True)[scol].dropna()
+            sh2 = sh2 / sh2.iloc[0] * long.iloc[-1]
+            long = pd.concat([long, sh2[sh2.index > long.index[-1]]])
+        stitched[name] = long
+        starts[name] = long.index[0].date().isoformat()
+    ydf = pd.DataFrame(stitched)
+    ye = ydf.resample("YE").last()
+    yfirst = ydf.resample("YE").first()
+    # a year's return is last close / previous year's last close; first year uses its own first close
+    prev = ye.shift(1)
+    yearly = (ye / prev.where(prev.notna(), yfirst) - 1) * 100
+    yearly.index = [str(y) if y < 2026 else "2026 至 10-16" for y in yearly.index.year]
+    total = pd.DataFrame({"起始日": pd.Series(starts), "結束日": pd.Series({k: v.index[-1].date().isoformat() for k, v in stitched.items()}),
+                          "總報酬 %": pd.Series({k: round((v.iloc[-1] - 1) * 100, 0) for k, v in stitched.items()}),
+                          "10 萬終值": pd.Series({k: round(100_000 * v.iloc[-1]) for k, v in stitched.items()}),
+                          "CAGR %": pd.Series({k: round(((v.iloc[-1]) ** (365.25 / (v.index[-1] - v.index[0]).days) - 1) * 100, 1) for k, v in stitched.items()})})
+    yt = yearly.round(1).T
+    yt.index.name = "策略"
+    out_y = pd.concat([yt, total], axis=1)
+    out_y.to_csv("strategy_table_yearly.csv", encoding="utf-8-sig")
+    yearly_md = md(yearly.round(1).reset_index().rename(columns={"index": "年"}))
+    total_md = md(total.reset_index().rename(columns={"index": "策略"}))
 
     # ---- markdown page
     c1 = ["名稱", "類別", "CAGR_pct", "ann_vol_pct", "sharpe", "max_dd_pct", "calmar", "worst_year_pct", "pct_years_positive", "final_100k", "評價"]
@@ -158,6 +224,9 @@ def main() -> int:
     t2 = cur.dropna(subset=["mc_win_vs_QQQ_pct"])[c2].rename(columns={"mc_win_vs_QQQ_pct": "勝 QQQ %", "mc_median_CAGR_pct": "CAGR 中位數 %", "mc_p10_CAGR_pct": "CAGR p10 %", "mc_worst_CAGR_pct": "最差 CAGR %", "mc_prob_loss_pct": "虧損機率 %", "CAGR_2025_2026_pct": "2025-26 CAGR %"})
     c3 = ["名稱", "類別", "CAGR_pct", "ann_vol_pct", "sharpe", "max_dd_pct", "worst_year_pct", "final_100k"]
     t3 = short[c3].rename(columns={"CAGR_pct": "CAGR %", "ann_vol_pct": "年化波動 %", "sharpe": "Sharpe", "max_dd_pct": "最大回撤 %", "worst_year_pct": "最差年 %", "final_100k": "10 萬終值"})
+    f15 = cur[cur["類別"] == "選股 + 濾網（15.6）"].set_index("strategy")
+    f15_rng = f"{f15.loc[['short_top5_r200','medium_top5_r200','long_top5_r200','12_1_top5_r200'], 'CAGR_pct'].min():.1f}% 到 {f15.loc[['short_top5_r200','medium_top5_r200','long_top5_r200','12_1_top5_r200'], 'CAGR_pct'].max():.1f}%"
+    f15_dd = f"{f15.loc[['short_top5_r200','medium_top5_r200','long_top5_r200','12_1_top5_r200'], 'max_dd_pct'].max():.0f}% 到 {f15.loc[['short_top5_r200','medium_top5_r200','long_top5_r200','12_1_top5_r200'], 'max_dd_pct'].min():.0f}%"
     page = f"""## 12. 全部策略總表
 
 所有階段的策略放在同一個比較表。共同期間 2000-03-01 至 2024-12-31（選股策略從 2000-01 起算，這裡統一截到 2000-03 以與 QQQ 擇時規則對齊）。指標定義相同：CAGR、年化波動、Sharpe（無風險利率 0）、最大回撤、Calmar、最差年份、正報酬年份比例、10 萬本金終值。蒙地卡羅為同一組 5,000 次（進場日、1 到 20 年持有）抽樣，曲線延伸到 2026-10-16，只有有完整曲線的規則才有此欄。腳本 `sp500_strategy_table.py`，全部 {len(full)} 條曲線在 `strategy_table_2000_2024.csv`。
@@ -176,17 +245,28 @@ def main() -> int:
 
 {md(t3)}
 
-選股 A 與 B 用今日成份股名單，這段期間的 62% 到 83% CAGR 全部來自 2026 年的記憶體與儲存股行情，第六節已證明隨機剔除 36 隻股票就會讓它在 17% 到 102% 之間跳動。
+選股 A 與 B 用今日成份股名單，這段期間的 62% 到 83% CAGR 全部來自 2026 年的記憶體與儲存股行情，第六節已證明隨機剔除 36 隻股票就會讓它在 17% 到 102% 之間跳動。第 15 節的每月前 5 隻同樣用今日名單，且從 2025-02-03 起算（需 252 日歷史），期間比其他列短一個月，數字不能直接相減。
 
 ### 12.4 怎麼讀這張表
 
-- **報酬**：2000 至 2024 年最高的是成員等權（12.4%），但它是存活者等權，不可投資。可投資的最高是組合規則 9.8%、波動率目標 10.0%、200 日線月底評估 9.4%，QQQ 與 SPY 各 7.2% 到 7.9%。所有選股策略都在 6% 以下。
-- **回撤**：QQQ -83%、SPY -55%、選股 -48% 到 -72%、全進全出擇時 -26% 到 -41%、波動率目標 -47% 到 -71%。回撤最小的是「200 日線且距高點 15% 內」（-26%）與「波動率目標 20% / 63 日 + 200 日線」（-25%）。
+- **報酬**：2000 至 2024 年最高的是成員等權（12.4%），但它是存活者等權，不可投資。可投資的最高是「每月動能前 5 隻 + QQQ 200 日線濾網」{f15_rng}（第 15.6 節，四種定義），其次組合規則 9.8%、波動率目標 10.0%、200 日線月底評估 9.4%，QQQ 與 SPY 各 7.2% 到 7.9%。不加濾網的選股策略全部在 8% 以下。
+- **加濾網的選股要打折看**：它的優勢全來自 2000 至 2002 與 2008 年持現金（2000 年代 CAGR 8% 到 14% 對 SPY -0.9%），2010 年以後多數年份輸 SPY、全部輸 QQQ；最大回撤仍 {f15_dd}，與 SPY 相當；對濾網長度敏感（250 日時短期定義掉到 4%）；曲線只到 2024-12，沒有同一組蒙地卡羅可比。第 13、14 節已證明濾網本身在樣本外不加分。
+- **回撤**：QQQ -83%、SPY -55%、選股 -48% 到 -82%、全進全出擇時 -26% 到 -41%、波動率目標 -47% 到 -71%。回撤最小的是「200 日線且距高點 15% 內」（-26%）與「波動率目標 20% / 63 日 + 200 日線」（-25%）。
 - **任意時點進場**：只有波動率目標家族的 CAGR 中位數不低於 QQQ（14.5% 到 15.3% 對 14.5%），同時第 10 百分位與最差情境改善。全進全出擇時的中位數低 3 到 6 點，選股低 8 點以上。
 - **全期 CAGR 與蒙地卡羅中位數的落差**：全期從 2000 年 3 月泡沫頂點起算，是 QQQ 最差的進場日，因此全期數字對擇時有利；蒙地卡羅把進場日平均掉，才是「隨時進場」的期望值。
 - 第 9.8 節已說明波動擴張規則與組合規則的優勢集中在 2008 年 10 月與 2020 年 3 月兩個事件。
+
+### 12.5 逐年報酬與至今總報酬（2000 年起至 2026-10-16）
+
+每年報酬 = 該年最後收盤 ÷ 前一年最後收盤 − 1（首年用該曲線的第一個收盤）。標 * 的選股策略是兩段接起來的：2000 至 2024 年用時點成份股宇宙，2025 年起接上今日名單的曲線（選股 A、B 與成員等權從 2025-01-02，每月前 N 隻從 2025-02-03，接點前視為持平）；今日名單有存活偏差，2025 年以後的數字偏樂觀，與前面各年不是同一個宇宙。QQQ 擇時與波動率目標規則從 2000-03-01 起算（QQQ 資料 1999 年 3 月起，需 252 日暖身），其餘從 2000-01-03。完整數字在 `strategy_table_yearly.csv`。
+
+{yearly_md}
+
+{total_md}
 """
-    open("docs/12-strategy-table.md", "w").write("# 12. 全部策略總表\n\n[回索引](../README.md) · [完整報告](./ANALYSIS.md) · [上一節](./11-reproduce.md)\n\n" + page.split("\n", 2)[2] + "\n\n---\n\n[回索引](../README.md) · [完整報告](./ANALYSIS.md) · [上一節](./11-reproduce.md)\n")
+    nav = "[回索引](../README.md) · [完整報告](./ANALYSIS.md) · [上一節](./11-reproduce.md) · [下一節](./13-walk-forward.md)"
+    body = page.split("\n", 2)[2].replace("\n### 12.", "\n## 12.")
+    open("docs/12-strategy-table.md", "w").write(f"# 12. 全部策略總表\n\n{nav}\n\n> 資料：S&P 500 成份股，Yahoo Finance 調整後收盤價。短期分析期間 2024-01-02 至 2026-10-16；長期回測 2000-01-03 至 2024-12-31。\n\n" + body + "\n\n---\n\n" + nav + "\n")
     open("/tmp/strategy_table_section.md", "w").write(page)
     pd.set_option("display.width", 300)
     print(t1.to_string(index=False)); print(); print(t2.to_string(index=False)); print(); print(t3.to_string(index=False))
