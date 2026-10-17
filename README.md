@@ -82,3 +82,18 @@ python sp500_entry_points.py --reversal 0.08 --min-gain 0.40 --recent 5 --top 3
 | `sp500_entry_signals.csv` | signal league table: fires per stock-year, coverage, median lag, median captured %, early-in-run precision vs baseline, forward 63-day excess / hit / big-win / bust rates |
 | `sp500_entry_trough_profile.csv` | median features of winners 0, 5, 10 and 20 days after the trough |
 | `sp500_entry_candidates.csv` | stocks where the top-ranked signals fired in the last N trading days |
+
+## Portfolio back-test of the entry signals (`sp500_backtest.py`)
+
+Back-tests the entry signals as a concentrated portfolio (3 to 5 positions). A signal seen at
+the close of day t-1 is bought at the close of day t, each position gets NAV / max_positions,
+exits are time stop, trailing stop, fixed stop or a rule exit, 0.10% cost per side.
+
+```bash
+python sp500_backtest.py --grid                                   # staged grid search -> sp500_backtest_grid.csv
+python sp500_backtest.py --run breakout_52w_high 3 42 none none none ret10   # one configuration with trade log
+```
+
+Every run reports full-period, in-sample (2025) and out-of-sample (2026) CAGR. Results and
+the robustness checks (random tie-breaking, removal of the largest winners, start-date
+shifts, random-entry baseline) are discussed in `docs/ANALYSIS.md`.
