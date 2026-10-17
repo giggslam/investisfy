@@ -97,3 +97,17 @@ python sp500_backtest.py --run breakout_52w_high 3 42 none none none ret10   # o
 Every run reports full-period, in-sample (2025) and out-of-sample (2026) CAGR. Results and
 the robustness checks (random tie-breaking, removal of the largest winners, start-date
 shifts, random-entry baseline) are discussed in `docs/ANALYSIS.md`.
+
+## 2000-2024 long-horizon back-test (`sp500_backtest_long.py`)
+
+Runs the selected double +10 strategies over 2000-2024 with a **point-in-time** S&P 500
+universe (daily membership from the public fja05680/sp500 dataset; delisted tickers have
+no Yahoo history and are missing). Also runs the same rules on today's constituents only to
+measure survivorship inflation. Result: the strategies that returned 62-83% a year in
+2025-2026 made -0.6% to 5.7% a year over 2000-2024 and trailed SPY; see `docs/ANALYSIS.md`
+section 7.
+
+```bash
+python sp500_backtest_long.py --build   # first run downloads membership + 26 years of prices
+python sp500_backtest_long.py           # re-run from caches
+```

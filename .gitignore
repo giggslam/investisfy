@@ -209,3 +209,6 @@ __marimo__/
 # downloaded price cache (regenerate with sp500_momentum.py)
 prices_cache.csv
 sp500_momentum_history.csv
+prices_long_cache.csv
+spy_long_cache.csv
+membership_long.pkl
