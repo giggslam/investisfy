@@ -18,6 +18,7 @@ python sp500_benchmark_compare.py         # 與 SPY、QQQ 比較，輸出表格�
 python sp500_beat_qqq.py                  # 允許空倉的擇時策略對 QQQ（含選股加濾網，約 10 分鐘；--no-stocks 只跑 ETF 規則）
 python sp500_beat_qqq.py --chart-only qqq_sma_200_monthly qqq_sma_200_dd_15 qqq_sma_250
 python sp500_random_entry_mc.py --n 5000 --min-years 1 --max-years 20   # 隨機進場蒙地卡羅
+python sp500_optimize_qqq.py              # 第二代規則（波動率目標、部分減碼、投票、寬度、四資產、混合）
 ```
 
 | 檔案 | 內容 |
@@ -47,6 +48,8 @@ python sp500_random_entry_mc.py --n 5000 --min-years 1 --max-years 20   # 隨機
 | `sp500_beat_qqq_summary.csv`、`_entry_windows.csv`、`_yearly.csv`、`_equity.csv`、`_examples_100k.csv`、`docs/beat_qqq.png` | 27 組策略的摘要、進場視窗統計、逐年、淨值、10 萬本金範例與圖 |
 | `sp500_random_entry_mc.py` | 5,000 次隨機進場、持有 1 到 20 年的蒙地卡羅 |
 | `sp500_random_entry_mc_summary.csv`、`_by_hold.csv`、`_by_entry_year.csv`、`_draws.csv`、`docs/random_entry_mc.png` | 整體、依持有年數、依進場年份的統計，每筆抽樣，與圖 |
+| `sp500_optimize_qqq.py` | 第二代可空倉規則：波動率目標、部分減碼、投票、不對稱趨勢、寬度濾網、四資產動能、混合 |
+| `sp500_optimize_qqq_summary.csv`、`_entry_windows.csv`、`_mc_summary.csv`、`_mc_by_hold.csv`、`_equity.csv`、`docs/optimize_qqq.png` | 29 組規則的全期指標、進場視窗、配對蒙地卡羅與圖 |
 | `prices_long_cache.csv`、`membership_long.pkl`、`spy_long_cache.csv` | 26 年股價、歷史成員矩陣與 SPY 快取（未提交，`--build` 重建） |
 
 ---
