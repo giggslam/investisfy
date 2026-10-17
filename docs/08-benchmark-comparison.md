@@ -1,6 +1,6 @@
 # 8. 與 SPY、QQQ 的比較
 
-[回索引](../README.md) · [完整報告](./ANALYSIS.md) · [上一節](./07-backtest-2000-2024.md) · [下一節](./09-conclusions.md)
+[回索引](../README.md) · [完整報告](./ANALYSIS.md) · [上一節](./07-backtest-2000-2024.md) · [下一節](./09-beat-qqq.md)
 
 > 資料：S&P 500 成份股，Yahoo Finance 調整後收盤價。短期分析期間 2024-01-02 至 2026-10-16；長期回測 2000-01-03 至 2024-12-31。
 
@@ -81,4 +81,4 @@
 
 ---
 
-[回索引](../README.md) · [完整報告](./ANALYSIS.md) · [上一節](./07-backtest-2000-2024.md) · [下一節](./09-conclusions.md)
+[回索引](../README.md) · [完整報告](./ANALYSIS.md) · [上一節](./07-backtest-2000-2024.md) · [下一節](./09-beat-qqq.md)

@@ -1,6 +1,6 @@
-# 10. 重跑方式與檔案清單
+# 11. 重跑方式與檔案清單
 
-[回索引](../README.md) · [完整報告](./ANALYSIS.md) · [上一節](./09-conclusions.md)
+[回索引](../README.md) · [完整報告](./ANALYSIS.md) · [上一節](./10-conclusions.md)
 
 > 資料：S&P 500 成份股，Yahoo Finance 調整後收盤價。短期分析期間 2024-01-02 至 2026-10-16；長期回測 2000-01-03 至 2024-12-31。
 
@@ -15,6 +15,8 @@ python sp500_backtest.py --run double_10 4 126 none none short_neg ret10 --out s
 python sp500_backtest_long.py --build    # 2000-2024 時點宇宙回測（首次會下載歷史名單與 26 年股價）
 python sp500_strategy_search.py --random-runs 200   # 2000-2024 策略搜尋與隨機對照（約 45 分鐘）
 python sp500_benchmark_compare.py         # 與 SPY、QQQ 比較，輸出表格與圖
+python sp500_beat_qqq.py                  # 允許空倉的擇時策略對 QQQ（含選股加濾網，約 10 分鐘；--no-stocks 只跑 ETF 規則）
+python sp500_beat_qqq.py --chart-only qqq_sma_200_monthly qqq_sma_200_dd_15 qqq_sma_250
 ```
 
 | 檔案 | 內容 |
@@ -40,8 +42,10 @@ python sp500_benchmark_compare.py         # 與 SPY、QQQ 比較，輸出表格�
 | `sp500_strategy_search_calibration.csv`、`_grid.csv`、`_random.csv`、`_best_trades.csv` | 25 年訊號校準、646 組網格、200 組隨機對照、網格第一名交易紀錄 |
 | `sp500_benchmark_compare.py` | 策略與 SPY、QQQ 的比較表與淨值曲線圖 |
 | `benchmark_compare_long_*.csv`、`benchmark_compare_short_*.csv`、`docs/benchmark_comparison.png` | 兩個期間的淨值、指標、逐年、分期與圖 |
+| `sp500_beat_qqq.py` | 允許空倉的擇時規則與加濾網的選股策略對 QQQ，含任意進場時點檢驗 |
+| `sp500_beat_qqq_summary.csv`、`_entry_windows.csv`、`_yearly.csv`、`_equity.csv`、`_examples_100k.csv`、`docs/beat_qqq.png` | 27 組策略的摘要、進場視窗統計、逐年、淨值、10 萬本金範例與圖 |
 | `prices_long_cache.csv`、`membership_long.pkl`、`spy_long_cache.csv` | 26 年股價、歷史成員矩陣與 SPY 快取（未提交，`--build` 重建） |
 
 ---
 
-[回索引](../README.md) · [完整報告](./ANALYSIS.md) · [上一節](./09-conclusions.md)
+[回索引](../README.md) · [完整報告](./ANALYSIS.md) · [上一節](./10-conclusions.md)

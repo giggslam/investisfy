@@ -2,7 +2,7 @@
 
 S&P 500 動能研究：從事後股價反推動能、校準分數的預測力、從贏家反推買入點、以 3 到 5 隻持倉回測，最後用 2000 至 2024 年的時點成份股宇宙驗證。所有結果都可用本 repo 的腳本重算。
 
-**一句話結論**：2024 至 2026 年看起來有效的動能策略（CAGR 62% 到 83%），放到 2000 至 2024 年的時點宇宙只有 -0.6% 到 5.7%，輸給 SPY，且比隨機選股差。對 24 種進場規則做 646 組搜尋，沒有任何 3 到 5 隻持倉的策略在 25 年達到 30% CAGR；穩健上限約 12% 到 14%，與等權基準相同。S&P 500 內部跨 25 年穩定存在的是極端下跌後的反轉，不是動能延續。長期而言被動持有 SPY 或 QQQ（25 年各 7.7% CAGR）優於這套策略。
+**一句話結論**：2024 至 2026 年看起來有效的動能策略（CAGR 62% 到 83%），放到 2000 至 2024 年的時點宇宙只有 -0.6% 到 5.7%，輸給 SPY，且比隨機選股差。對 24 種進場規則做 646 組搜尋，沒有任何 3 到 5 隻持倉的策略在 25 年達到 30% CAGR；穩健上限約 12% 到 14%，與等權基準相同。S&P 500 內部跨 25 年穩定存在的是極端下跌後的反轉，不是動能延續。長期而言被動持有 SPY 或 QQQ（25 年各 7.7% CAGR）優於這套策略。允許空倉的擇時規則也無法在多數進場時點勝過 QQQ，只能把回撤減半。
 
 ## 文件索引
 
@@ -16,9 +16,10 @@ S&P 500 動能研究：從事後股價反推動能、校準分數的預測力、
 | 6 | [組合回測：3 到 5 隻持倉](docs/06-portfolio-backtest.md) | 960 組網格、壓力測試、入選策略 | double_10 5 隻 63 日：CAGR 83%、回撤 -40%；但隨機剔除 36 隻股票可使 CAGR 在 17% 到 99% 間跳動 |
 | 7 | [2000 至 2024 年長期回測](docs/07-backtest-2000-2024.md) | 時點成份股宇宙、逐年與分期報酬、隨機基準、存活偏差量化、646 組策略搜尋 | CAGR 3.4% / -0.6% / 5.7% vs SPY 7.7%；今日名單多出 9 到 20 個百分點；搜尋中 0 組達 30%，最高 22.4% 且為起始日運氣 |
 | 8 | [與 SPY、QQQ 的比較](docs/08-benchmark-comparison.md) | 兩個期間的策略對 SPY、QQQ 淨值曲線、指標、逐年、分期、滾動三年勝率 | 2000-2024：策略 3.4% / -0.6% / 5.7% 對 SPY 7.7%、QQQ 7.7%，全輸；2025-2026：82.6% 對 17.4% / 20.9%，領先全來自 2026 |
-| 9 | [結論與限制](docs/09-conclusions.md) | 全部結論與方法限制 | |
-| 10 | [重跑方式與檔案清單](docs/10-reproduce.md) | 指令與每個輸出檔的說明 | |
-| | [完整報告（單一檔）](docs/ANALYSIS.md) | 第 1 到 10 節合併版 | |
+| 9 | [允許空倉：任意時點進場能否跑贏 QQQ](docs/09-beat-qqq.md) | 27 組可空倉的擇時與濾網策略、每月進場視窗的勝率、10 萬本金在各進場日的終值 | 沒有策略在多數進場時點勝過 QQQ（5 年視窗最高 34.5%）；QQQ 200 日線月底評估規則 CAGR 9.4% 對 7.2%、回撤 -41% 對 -83%，任何 10 年視窗不虧損 |
+| 10 | [結論與限制](docs/10-conclusions.md) | 全部結論與方法限制 | |
+| 11 | [重跑方式與檔案清單](docs/11-reproduce.md) | 指令與每個輸出檔的說明 | |
+| | [完整報告（單一檔）](docs/ANALYSIS.md) | 第 1 到 11 節合併版 | |
 
 ## 腳本
 
@@ -30,6 +31,7 @@ S&P 500 動能研究：從事後股價反推動能、校準分數的預測力、
 | `sp500_backtest_long.py` | 2000 至 2024 年時點成份股宇宙回測、隨機基準、存活偏差對照 | `sp500_backtest_long_summary.csv`、`_yearly.csv`、`_equity.csv`、`_trades_A.csv`、`_trades_B.csv` |
 | `sp500_strategy_search.py` | 2000 至 2024 年 24 種進場規則的策略搜尋與隨機多重測試對照 | `sp500_strategy_search_calibration.csv`、`_grid.csv`、`_random.csv`、`_best_trades.csv` |
 | `sp500_benchmark_compare.py` | 策略與 SPY、QQQ 的比較表與淨值曲線圖 | `benchmark_compare_*.csv`、`docs/benchmark_comparison.png` |
+| `sp500_beat_qqq.py` | 允許空倉的擇時規則與加濾網選股對 QQQ，任意進場時點檢驗，10 萬本金範例 | `sp500_beat_qqq_*.csv`、`docs/beat_qqq.png` |
 
 ## 快速開始
 
@@ -41,9 +43,10 @@ python sp500_backtest.py --grid             # 3 到 5 隻持倉網格回測
 python sp500_backtest_long.py --build       # 2000-2024 回測（首次下載歷史名單與 26 年股價，約 10 分鐘）
 python sp500_strategy_search.py --random-runs 200   # 2000-2024 策略搜尋（約 45 分鐘）
 python sp500_benchmark_compare.py           # 與 SPY、QQQ 比較
+python sp500_beat_qqq.py                    # 允許空倉的擇時策略對 QQQ
 ```
 
-快取檔（`prices_cache.csv`、`prices_long_cache.csv`、`membership_long.pkl`、`spy_long_cache.csv`、`spy_full_cache.csv`、`qqq_full_cache.csv`）與 28 MB 的 `sp500_momentum_history.csv` 不進 git，重跑即可產生。
+快取檔（`prices_cache.csv`、`prices_long_cache.csv`、`membership_long.pkl`、`spy_long_cache.csv`、`spy_full_cache.csv`、`qqq_full_cache.csv`、`irx_cache.csv`）與 28 MB 的 `sp500_momentum_history.csv` 不進 git，重跑即可產生。
 
 ## 資料來源
 

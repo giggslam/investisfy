@@ -111,6 +111,7 @@ def chart(stem: str, picks: list[str], path: str = "docs/beat_qqq.png") -> None:
     cjk = sorted({f.name for f in font_manager.fontManager.ttflist if "WenQuanYi" in f.name or "Noto Sans CJK" in f.name})
     if cjk:
         plt.rcParams["font.family"] = cjk[0]
+    plt.rcParams["axes.unicode_minus"] = False
     palette = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300"]
     eq = pd.read_csv(f"{stem}_equity.csv", index_col=0, parse_dates=True).loc[: "2024-12-31"]
     series = ["QQQ_buy_hold", "SPY_buy_hold"] + [c for c in picks if c in eq.columns and c not in ("QQQ_buy_hold", "SPY_buy_hold")]
@@ -126,7 +127,7 @@ def chart(stem: str, picks: list[str], path: str = "docs/beat_qqq.png") -> None:
         ends.append((c, v.index[-1], float(v.iloc[-1])))
     ax.set_yscale("log")
     x0, x1 = mdates.date2num(eq.index[0]), mdates.date2num(eq.index[-1])
-    ax.set_xlim(x0 - (x1 - x0) * 0.02, x1 + (x1 - x0) * 0.16)
+    ax.set_xlim(x0 - (x1 - x0) * 0.02, x1 + (x1 - x0) * 0.24)
     ax.set_title("100,000 invested 2000-03-01, value to 2024-12-31 (log scale)", fontsize=11, loc="left", color="#0b0b0b")
     ax.set_ylabel("Portfolio value", color="#52514e", fontsize=9)
     ax.yaxis.set_major_formatter(matplotlib.ticker.FuncFormatter(lambda v, _: f"{v/1000:.0f}k"))
