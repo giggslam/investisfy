@@ -13,6 +13,7 @@ python sp500_backtest.py --grid          # 組合回測網格（960 組）
 python sp500_backtest.py --run double_10 5 63 none 0.12 none ret10 --out sp500_backtest_maxreturn
 python sp500_backtest.py --run double_10 4 126 none none short_neg ret10 --out sp500_backtest_robust
 python sp500_backtest_long.py --build    # 2000-2024 時點宇宙回測（首次會下載歷史名單與 26 年股價）
+python sp500_strategy_search.py --random-runs 200   # 2000-2024 策略搜尋與隨機對照（約 45 分鐘）
 ```
 
 | 檔案 | 內容 |
@@ -34,6 +35,8 @@ python sp500_backtest_long.py --build    # 2000-2024 時點宇宙回測（首次
 | `sp500_backtest_robust_best_trades.csv`、`_equity.csv` | 穩健策略的交易紀錄與淨值曲線 |
 | `sp500_backtest_long.py` | 2000-2024 時點成份股宇宙的長期回測 |
 | `sp500_backtest_long_summary.csv`、`_yearly.csv`、`_equity.csv`、`_trades_A.csv`、`_trades_B.csv` | 長期回測的摘要、逐年報酬、淨值曲線與交易紀錄 |
+| `sp500_strategy_search.py` | 2000-2024 時點宇宙的策略搜尋（24 種進場 × 持倉 × 持有期 × 排序 × 出場，含隨機對照） |
+| `sp500_strategy_search_calibration.csv`、`_grid.csv`、`_random.csv`、`_best_trades.csv` | 25 年訊號校準、646 組網格、200 組隨機對照、網格第一名交易紀錄 |
 | `prices_long_cache.csv`、`membership_long.pkl`、`spy_long_cache.csv` | 26 年股價、歷史成員矩陣與 SPY 快取（未提交，`--build` 重建） |
 
 ---

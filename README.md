@@ -2,7 +2,7 @@
 
 S&P 500 動能研究：從事後股價反推動能、校準分數的預測力、從贏家反推買入點、以 3 到 5 隻持倉回測，最後用 2000 至 2024 年的時點成份股宇宙驗證。所有結果都可用本 repo 的腳本重算。
 
-**一句話結論**：2024 至 2026 年看起來有效的動能策略（CAGR 62% 到 83%），放到 2000 至 2024 年的時點宇宙只有 -0.6% 到 5.7%，輸給 SPY，且比隨機選股差。S&P 500 內部跨 25 年穩定存在的是極端下跌後的反轉，不是動能延續。
+**一句話結論**：2024 至 2026 年看起來有效的動能策略（CAGR 62% 到 83%），放到 2000 至 2024 年的時點宇宙只有 -0.6% 到 5.7%，輸給 SPY，且比隨機選股差。對 24 種進場規則做 646 組搜尋，沒有任何 3 到 5 隻持倉的策略在 25 年達到 30% CAGR；穩健上限約 12% 到 14%，與等權基準相同。S&P 500 內部跨 25 年穩定存在的是極端下跌後的反轉，不是動能延續。
 
 ## 文件索引
 
@@ -14,7 +14,7 @@ S&P 500 動能研究：從事後股價反推動能、校準分數的預測力、
 | 4 | [事後校準](docs/04-calibration.md) | 每日即時分數對之後 21 / 63 日報酬的校準表、資訊係數、分數持續性 | 只有 +10 有超額（21 日 +2.4% 到 +3.5%）；-10 平均反彈 |
 | 5 | [從贏家反推買入點](docs/05-entry-points.md) | 1,458 次贏家行情的低點剖面、15 種即時訊號排名、目前候選 | 下跌後急拉訊號：低點後 9 天觸發、63 日超額 +7.0% |
 | 6 | [組合回測：3 到 5 隻持倉](docs/06-portfolio-backtest.md) | 960 組網格、壓力測試、入選策略 | double_10 5 隻 63 日：CAGR 83%、回撤 -40%；但隨機剔除 36 隻股票可使 CAGR 在 17% 到 99% 間跳動 |
-| 7 | [2000 至 2024 年長期回測](docs/07-backtest-2000-2024.md) | 時點成份股宇宙、逐年與分期報酬、隨機基準、存活偏差量化 | CAGR 3.4% / -0.6% / 5.7% vs SPY 7.7%；今日名單多出 9 到 20 個百分點 |
+| 7 | [2000 至 2024 年長期回測](docs/07-backtest-2000-2024.md) | 時點成份股宇宙、逐年與分期報酬、隨機基準、存活偏差量化、646 組策略搜尋 | CAGR 3.4% / -0.6% / 5.7% vs SPY 7.7%；今日名單多出 9 到 20 個百分點；搜尋中 0 組達 30%，最高 22.4% 且為起始日運氣 |
 | 8 | [結論與限制](docs/08-conclusions.md) | 全部結論與方法限制 | |
 | 9 | [重跑方式與檔案清單](docs/09-reproduce.md) | 指令與每個輸出檔的說明 | |
 | | [完整報告（單一檔）](docs/ANALYSIS.md) | 第 1 到 9 節合併版 | |
@@ -27,6 +27,7 @@ S&P 500 動能研究：從事後股價反推動能、校準分數的預測力、
 | `sp500_entry_points.py` | zigzag 找出贏家行情，事後對照 15 種即時進場訊號 | `sp500_entry_runs.csv`、`sp500_entry_signals.csv`、`sp500_entry_trough_profile.csv`、`sp500_entry_candidates.csv` |
 | `sp500_backtest.py` | 3 到 5 隻持倉的組合回測引擎與網格搜尋 | `sp500_backtest_grid.csv`、`sp500_backtest_maxreturn_*`、`sp500_backtest_robust_*` |
 | `sp500_backtest_long.py` | 2000 至 2024 年時點成份股宇宙回測、隨機基準、存活偏差對照 | `sp500_backtest_long_summary.csv`、`_yearly.csv`、`_equity.csv`、`_trades_A.csv`、`_trades_B.csv` |
+| `sp500_strategy_search.py` | 2000 至 2024 年 24 種進場規則的策略搜尋與隨機多重測試對照 | `sp500_strategy_search_calibration.csv`、`_grid.csv`、`_random.csv`、`_best_trades.csv` |
 
 ## 快速開始
 
@@ -36,6 +37,7 @@ python sp500_momentum.py --mode both        # 快照 + 每日歷史 + 校準 + I
 python sp500_entry_points.py                # 贏家行情與進場訊號
 python sp500_backtest.py --grid             # 3 到 5 隻持倉網格回測
 python sp500_backtest_long.py --build       # 2000-2024 回測（首次下載歷史名單與 26 年股價，約 10 分鐘）
+python sp500_strategy_search.py --random-runs 200   # 2000-2024 策略搜尋（約 45 分鐘）
 ```
 
 快取檔（`prices_cache.csv`、`prices_long_cache.csv`、`membership_long.pkl`、`spy_long_cache.csv`）與 28 MB 的 `sp500_momentum_history.csv` 不進 git，重跑即可產生。
