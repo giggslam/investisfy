@@ -21,6 +21,8 @@ python sp500_random_entry_mc.py --n 5000 --min-years 1 --max-years 20   # 隨機
 python sp500_optimize_qqq.py              # 第二代規則（波動率目標、部分減碼、投票、寬度、四資產、混合）
 python sp500_optimize_qqq2.py             # 第三輪：波動率目標的改良與組合
 python sp500_strategy_table.py            # 全部策略總表
+python sp500_walk_forward.py              # 走動式樣本外測試（約 5 秒）
+python sp500_cross_asset.py               # 跨資產驗證（首次下載 18 檔 ETF，約 30 秒）
 ```
 
 | 檔案 | 內容 |
@@ -56,6 +58,10 @@ python sp500_strategy_table.py            # 全部策略總表
 | `sp500_optimize_qqq2_summary.csv`、`_equity.csv`、`docs/optimize_qqq2.png` | 39 組改良規則的指標、配對蒙地卡羅、2009 後與無崩盤切面，與圖 |
 | `sp500_strategy_table.py` | 把所有階段的策略放到同一比較表 |
 | `strategy_table_2000_2024.csv`、`strategy_table_2025_2026.csv`、`docs/12-strategy-table.md` | 103 條曲線的共同期間指標與蒙地卡羅、2025-26 表、策略總表頁 |
+| `sp500_walk_forward.py` | 走動式樣本外測試：五個規則家族、118 組參數、三段展開式與逐年重選 |
+| `sp500_walk_forward_params.csv`、`_equity.csv`、`_summary.csv`、`docs/walk_forward.png` | 每次重選的參數、拼接的樣本外淨值、指標與折價、配對蒙地卡羅，與圖 |
+| `sp500_cross_asset.py` | 跨資產驗證：凍結參數的 8 條規則套到 18 檔 ETF |
+| `sp500_cross_asset_metrics.csv`、`_mc.csv`、`_summary.csv`、`_equity_post2009.csv`、`docs/cross_asset.png` | 資產 × 規則 × 期間指標、配對蒙地卡羅、彙總與符號檢定、2010 後淨值，與熱圖 |
 | `prices_long_cache.csv`、`membership_long.pkl`、`spy_long_cache.csv` | 26 年股價、歷史成員矩陣與 SPY 快取（未提交，`--build` 重建） |
 
 ---
