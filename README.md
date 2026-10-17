@@ -53,3 +53,30 @@ forward return 21 and 63 trading days later (`--fwd`). Horizons use strict windo
 | `<stem>_ic_daily.csv` | the daily IC series behind the summary |
 
 Downloaded prices are cached in `prices_cache.csv` (ignored by git); pass `--cache ''` to disable.
+
+## Entry points reverse-engineered from the winners (`sp500_entry_points.py`)
+
+Hindsight event study on the cached prices:
+
+1. A 10% zigzag splits every price path into legs; each trough-to-peak leg gaining
+   at least 30% is a **winning run** (the trough is the true, unobservable start).
+2. A set of real-time entry signals (moving-average crosses, 20/50-day and 52-week
+   breakouts, 10-day thrusts, momentum-score flips, "turn" signals that require the
+   thrust to start from a falling state) is evaluated on every day with no look-ahead.
+3. For every run: when each signal first fired after the trough (lag), the entry price
+   and how much of the run was still ahead. For every firing anywhere: forward 63-day
+   return, hit rate, excess vs the universe, how often it sits inside the first 20 days
+   of a winning run.
+
+```bash
+python sp500_momentum.py            # builds prices_cache.csv
+python sp500_entry_points.py        # -> sp500_entry_runs.csv, _signals.csv, _trough_profile.csv, _candidates.csv
+python sp500_entry_points.py --reversal 0.08 --min-gain 0.40 --recent 5 --top 3
+```
+
+| File | Content |
+|------|---------|
+| `sp500_entry_runs.csv` | one row per winning run (trough/peak date and price, gain, length, features at the trough, each signal's lag / entry / captured %) |
+| `sp500_entry_signals.csv` | signal league table: fires per stock-year, coverage, median lag, median captured %, early-in-run precision vs baseline, forward 63-day excess / hit / big-win / bust rates |
+| `sp500_entry_trough_profile.csv` | median features of winners 0, 5, 10 and 20 days after the trough |
+| `sp500_entry_candidates.csv` | stocks where the top-ranked signals fired in the last N trading days |
