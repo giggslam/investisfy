@@ -20,8 +20,11 @@ member on the signal date (historical membership) with a price and 252 days of h
 
 Periods reported: 2000-2024 (point-in-time universe), 2010-2019, 2020-2024, plus 2025-01..2026-10 on
 today's constituents (prices_cache.csv) so it can be compared with section 8.2.
-Controls: SPY, QQQ, equal-weight members (monthly rebalanced), and 200 random "pick N members at
-random each month" portfolios.
+Regime filter (--sma, default 200): every portfolio is also run gated by QQQ at the month-end signal:
+hold the picks only if QQQ closes above its SMA, otherwise hold T-bills for the month (suffix _r200).
+Controls: SPY, QQQ, QQQ gated by the same filter, equal-weight members (monthly rebalanced, with and
+without the filter), and 200 random "pick N members at random each month" portfolios per N, each run
+with and without the filter.
 
 Outputs: <out>_summary.csv, <out>_yearly.csv, <out>_periods.csv, <out>_equity.csv,
          <out>_random.csv, docs/top5_monthly.png
@@ -56,14 +59,16 @@ def rank_frames(px: pd.DataFrame, eligible: pd.DataFrame) -> dict[str, pd.DataFr
     return {"short": r21, "medium": r63, "long": r252, "12_1": r12_1, "composite": comp}
 
 
-def run_portfolio(px: pd.DataFrame, picks: dict[pd.Timestamp, list[str]], cost: float = COST) -> pd.Series:
+def run_portfolio(px: pd.DataFrame, picks: dict[pd.Timestamp, list[str]], cost: float = COST, cash_daily: np.ndarray | None = None) -> pd.Series:
     """
-    picks: signal date -> list of tickers (equal weight). Trades at the next trading day's close.
-    Returns a daily NAV series starting at the first execution date (NAV = 1 there).
+    picks: signal date -> list of tickers (equal weight); an empty list means hold cash for the month
+    (earning cash_daily, the daily T-bill rate aligned to px.index, or 0). Trades at the next trading
+    day's close. Returns a daily NAV series starting at the first execution date (NAV = 1 there).
     """
     idx = px.index
+    cash = np.zeros(len(idx)) if cash_daily is None else np.nan_to_num(cash_daily, nan=0.0)
     pxf = px.ffill()
-    rets = pxf.pct_change().to_numpy()
+    rets = np.array(pxf.pct_change().to_numpy(), dtype=float, copy=True)
     rets[~np.isfinite(rets)] = 0.0
     cols = {c: i for i, c in enumerate(px.columns)}
     sig_dates = sorted(picks)
@@ -86,9 +91,12 @@ def run_portfolio(px: pd.DataFrame, picks: dict[pd.Timestamp, list[str]], cost: 
         for t in range(e + 1, stop):
             g = 1 + rets[t]
             pv = w * g
-            tot = pv.sum() if w.sum() > 0 else 1.0
-            value *= tot / w.sum() if w.sum() > 0 else 1.0
-            w = pv / tot * w.sum() if w.sum() > 0 else w
+            if w.sum() > 0:
+                tot = pv.sum()
+                value *= tot / w.sum()
+                w = pv / tot * w.sum()
+            else:
+                value *= 1 + cash[t]
             nav[t] = value
     s = pd.Series(nav, index=idx).dropna()
     return s / s.iloc[0]
@@ -109,9 +117,17 @@ def main(argv=None) -> int:
     p.add_argument("--sizes", default="5,10,20,50")
     p.add_argument("--random-runs", type=int, default=200)
     p.add_argument("--seed", type=int, default=42)
+    p.add_argument("--sma", type=int, default=200, help="QQQ moving-average length for the regime filter")
     p.add_argument("--out", default="sp500_top5_monthly")
+    p.add_argument("--chart", default="docs/top5_monthly.png")
+    p.add_argument("--chart-only", action="store_true", help="redraw the chart from the saved CSVs")
     args = p.parse_args(argv)
     sizes = [int(x) for x in args.sizes.split(",")]
+    if args.chart_only:
+        eq = pd.read_csv(f"{args.out}_equity.csv", index_col=0, parse_dates=True)
+        chart(eq, pd.read_csv(f"{args.out}_summary.csv"), sizes, args.sma, args.chart)
+        print(f"wrote {args.chart}")
+        return 0
 
     px, member = L.load("prices_long_cache.csv", "membership_long.pkl", args.start, args.end)
     px = px.replace(0.0, np.nan)  # a handful of zero closes in the cache (DEC 2021-2023) would be infinite returns
@@ -121,16 +137,27 @@ def main(argv=None) -> int:
     mes = [d for d in mes if ranks["long"].loc[d].notna().sum() >= 50]
     print(f"universe {px.shape[1]} tickers, {len(mes)} month-ends {mes[0].date()}..{mes[-1].date()}")
 
+    # QQQ regime: at the month-end signal, in the market only if QQQ closes above its SMA; otherwise cash (T-bill)
+    qqq = B.load_series("QQQ")
+    irx = B.load_series("IRX")
+    qqq_on = (qqq > qqq.rolling(args.sma).mean())
+    on = {d: bool(qqq_on.reindex([d], method="ffill").iloc[0]) for d in mes}
+    cash = (irx.reindex(px.index).ffill() / 100 / 252).to_numpy()
+    gate = lambda picks: {d: (v if on[d] else []) for d, v in picks.items()}
+
     curves: dict[str, pd.Series] = {}
     for name, fr in ranks.items():
         for n in sizes:
             picks = {d: fr.loc[d].dropna().nlargest(n).index.tolist() for d in mes}
-            curves[f"{name}_top{n}"] = run_portfolio(px, picks)
+            curves[f"{name}_top{n}"] = run_portfolio(px, picks, cash_daily=cash)
+            curves[f"{name}_top{n}_r{args.sma}"] = run_portfolio(px, gate(picks), cash_daily=cash)
     # controls
     ew_picks = {d: eligible.loc[d][eligible.loc[d]].index.tolist() for d in mes}
-    curves["equal_weight_members"] = run_portfolio(px, ew_picks)
+    curves["equal_weight_members"] = run_portfolio(px, ew_picks, cash_daily=cash)
+    curves[f"equal_weight_members_r{args.sma}"] = run_portfolio(px, gate(ew_picks), cash_daily=cash)
+    qf = pd.DataFrame({"QQQ": qqq.reindex(px.index).ffill()})
+    curves[f"QQQ_sma{args.sma}_monthly"] = run_portfolio(qf, gate({d: ["QQQ"] for d in mes}), cash_daily=cash)
     spy = pd.read_csv("spy_long_cache.csv", index_col=0, parse_dates=True).squeeze().sort_index()
-    qqq = B.load_series("QQQ")
     first = curves["composite_top5"].index[0]
     for nm, s in (("SPY", spy), ("QQQ", qqq)):
         s = s.reindex(px.index).ffill().loc[first:args.end]
@@ -145,11 +172,12 @@ def main(argv=None) -> int:
     for n in sizes:
         for k in range(args.random_runs):
             picks = {d: list(rng.choice(ew_picks[d], size=min(n, len(ew_picks[d])), replace=False)) for d in mes}
-            nav = run_portfolio(px, picks).loc[args.start:args.end]
-            rand_rows.append({"n": n, "run": k, "cagr_pct": round(B.cagr(nav) * 100, 2),
-                              "cagr_2020_2024_pct": round(period_cagr(nav, "2020-01-01", args.end) * 100, 2),
-                              "max_dd_pct": round((nav / nav.cummax() - 1).min() * 100, 1)})
-    rand = pd.DataFrame(rand_rows)
+            for regime, pk in (("none", picks), (f"qqq_sma{args.sma}", gate(picks))):
+                nav = run_portfolio(px, pk, cash_daily=cash).loc[args.start:args.end]
+                rand_rows.append({"n": n, "run": k, "regime": regime, "cagr_pct": round(B.cagr(nav) * 100, 2),
+                                  "cagr_2020_2024_pct": round(period_cagr(nav, "2020-01-01", args.end) * 100, 2),
+                                  "max_dd_pct": round((nav / nav.cummax() - 1).min() * 100, 1)})
+    rand = pd.DataFrame(rand_rows, columns=["n", "run", "regime", "cagr_pct", "cagr_2020_2024_pct", "max_dd_pct"])
     rand.to_csv(f"{args.out}_random.csv", index=False, encoding="utf-8-sig")
 
     # 2025-2026 on today's constituents
@@ -157,12 +185,19 @@ def main(argv=None) -> int:
     elig2 = px2.notna() & px2.shift(252).notna()
     ranks2 = rank_frames(px2, elig2)
     mes2 = [d for d in month_ends(px2.index) if d >= pd.Timestamp("2024-12-01") and ranks2["long"].loc[d].notna().sum() >= 50]
+    on2 = {d: bool(qqq_on.reindex([d], method="ffill").iloc[0]) for d in mes2}
+    cash2 = (irx.reindex(px2.index).ffill() / 100 / 252).to_numpy()
+    gate2 = lambda picks: {d: (v if on2[d] else []) for d, v in picks.items()}
     short_curves = {}
     for name, fr in ranks2.items():
         for n in sizes:
             picks = {d: fr.loc[d].dropna().nlargest(n).index.tolist() for d in mes2}
-            short_curves[f"{name}_top{n}"] = run_portfolio(px2, picks)
-    short_curves["equal_weight_members"] = run_portfolio(px2, {d: elig2.loc[d][elig2.loc[d]].index.tolist() for d in mes2})
+            short_curves[f"{name}_top{n}"] = run_portfolio(px2, picks, cash_daily=cash2)
+            short_curves[f"{name}_top{n}_r{args.sma}"] = run_portfolio(px2, gate2(picks), cash_daily=cash2)
+    ew2 = {d: elig2.loc[d][elig2.loc[d]].index.tolist() for d in mes2}
+    short_curves["equal_weight_members"] = run_portfolio(px2, ew2, cash_daily=cash2)
+    short_curves[f"equal_weight_members_r{args.sma}"] = run_portfolio(px2, gate2(ew2), cash_daily=cash2)
+    short_curves[f"QQQ_sma{args.sma}_monthly"] = run_portfolio(pd.DataFrame({"QQQ": qqq.reindex(px2.index).ffill()}), gate2({d: ["QQQ"] for d in mes2}), cash_daily=cash2)
     f2 = short_curves["composite_top5"].index[0]
     for nm, s in (("SPY", B.load_series("SPY")), ("QQQ", qqq)):
         s = s.reindex(px2.index).ffill().loc[f2:"2026-10-16"]
@@ -182,11 +217,14 @@ def main(argv=None) -> int:
                      "max_dd_2025_2026_pct": round((eq2[c] / eq2[c].cummax() - 1).min() * 100, 1) if c in eq2 else np.nan})
     summary = pd.DataFrame(rows)
     for n in sizes:
-        rn = rand[rand.n == n]
-        summary.loc[summary.strategy.str.endswith(f"_top{n}"), "random_cagr_p10"] = round(rn.cagr_pct.quantile(0.1), 2)
-        summary.loc[summary.strategy.str.endswith(f"_top{n}"), "random_cagr_median"] = round(rn.cagr_pct.median(), 2)
-        summary.loc[summary.strategy.str.endswith(f"_top{n}"), "random_cagr_p90"] = round(rn.cagr_pct.quantile(0.9), 2)
-        summary.loc[summary.strategy.str.endswith(f"_top{n}"), "random_2020_2024_median"] = round(rn.cagr_2020_2024_pct.median(), 2)
+        for regime, suffix in (("none", f"_top{n}"), (f"qqq_sma{args.sma}", f"_top{n}_r{args.sma}")):
+            rn = rand[(rand.n == n) & (rand.regime == regime)]
+            sel = summary.strategy.str.endswith(suffix)
+            summary.loc[sel, "random_cagr_p10"] = round(rn.cagr_pct.quantile(0.1), 2)
+            summary.loc[sel, "random_cagr_median"] = round(rn.cagr_pct.median(), 2)
+            summary.loc[sel, "random_cagr_p90"] = round(rn.cagr_pct.quantile(0.9), 2)
+            summary.loc[sel, "random_2020_2024_median"] = round(rn.cagr_2020_2024_pct.median(), 2)
+            summary.loc[sel, "random_max_dd_median"] = round(rn.max_dd_pct.median(), 1)
     summary.to_csv(f"{args.out}_summary.csv", index=False, encoding="utf-8-sig")
     yearly = (eq.resample("YE").last() / eq.resample("YE").first() - 1) * 100
     yearly.index = yearly.index.year
@@ -195,13 +233,13 @@ def main(argv=None) -> int:
     cols = ["strategy", "cagr_pct", "ann_vol_pct", "sharpe", "max_dd_pct", "worst_year_pct", "cagr_2000_2009_pct", "cagr_2010_2019_pct", "cagr_2020_2024_pct",
             "cagr_2025_2026_pct", "random_cagr_median", "random_cagr_p90"]
     print(summary[cols].to_string(index=False))
-    print(yearly.loc[2019:, [c for c in yearly.columns if c.endswith("top5") or c in ("SPY", "QQQ", "equal_weight_members")]].round(1).to_string())
-    chart(eq, summary, sizes, "docs/top5_monthly.png")
-    print(f"wrote {args.out}_summary.csv, _yearly.csv, _equity.csv, _equity_2025_2026.csv, _random.csv, docs/top5_monthly.png")
+    print(yearly.loc[2019:, [c for c in yearly.columns if "top5" in c or c in ("SPY", "QQQ", "equal_weight_members", f"QQQ_sma{args.sma}_monthly")]].round(1).to_string())
+    chart(eq, summary, sizes, args.sma, args.chart)
+    print(f"wrote {args.out}_summary.csv, _yearly.csv, _equity.csv, _equity_2025_2026.csv, _random.csv, {args.chart}")
     return 0
 
 
-def chart(eq: pd.DataFrame, summary: pd.DataFrame, sizes: list[int], path: str) -> None:
+def chart(eq: pd.DataFrame, summary: pd.DataFrame, sizes: list[int], sma: int, path: str) -> None:
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -210,7 +248,9 @@ def chart(eq: pd.DataFrame, summary: pd.DataFrame, sizes: list[int], path: str) 
     pal = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300"]
     labels = {"short_top5": "短期 21 日前 5", "medium_top5": "中期 63 日前 5", "long_top5": "長期 252 日前 5", "12_1_top5": "12-1 前 5",
               "composite_top5": "三階段合計前 5", "equal_weight_members": "成員等權", "SPY": "SPY", "QQQ": "QQQ"}
-    fig, (ax, ax2) = plt.subplots(2, 1, figsize=(13, 11), gridspec_kw={"height_ratios": [2.2, 1]})
+    fig = plt.figure(figsize=(15, 12))
+    gs = fig.add_gridspec(2, 2, height_ratios=[2.0, 1.0], hspace=0.3, wspace=0.18)
+    ax = fig.add_subplot(gs[0, :]); ax2 = fig.add_subplot(gs[1, 0]); ax3 = fig.add_subplot(gs[1, 1])
     series = ["composite_top5", "12_1_top5", "long_top5", "medium_top5", "short_top5", "equal_weight_members", "SPY", "QQQ"]
     colors = pal + ["#555555", "#999999"]
     for c, col in zip(series, colors):
@@ -251,8 +291,27 @@ def chart(eq: pd.DataFrame, summary: pd.DataFrame, sizes: list[int], path: str) 
     ax2.set_title("持倉數從 5 放寬到 50：集中度對報酬的影響", loc="left", fontsize=12)
     ax2.legend(frameon=False, ncol=len(sizes), loc="upper left")
     ax2.grid(axis="y", alpha=0.25); ax2.spines[["top", "right"]].set_visible(False)
-    fig.tight_layout()
-    fig.savefig(path, dpi=150)
+    # right: top-5 with and without the QQQ SMA filter
+    def val(name, col):
+        return summary.loc[summary.strategy == name, col].iloc[0]
+    groups = [(f"{r}_top5", names[r]) for r in rankings] + [("equal_weight_members", "成員等權"), ("QQQ", "QQQ")]
+    x = np.arange(len(groups)); w = 0.38
+    plain = [val(g, "cagr_pct") for g, _ in groups]
+    filt = [val(f"{g}_r{sma}" if g != "QQQ" else f"QQQ_sma{sma}_monthly", "cagr_pct") for g, _ in groups]
+    dd_plain = [val(g, "max_dd_pct") for g, _ in groups]
+    dd_filt = [val(f"{g}_r{sma}" if g != "QQQ" else f"QQQ_sma{sma}_monthly", "max_dd_pct") for g, _ in groups]
+    b1 = ax3.bar(x - w / 2, plain, w, color="#9db9de", label="無濾網")
+    b2 = ax3.bar(x + w / 2, filt, w, color="#2a78d6", label=f"QQQ > {sma} 日線才持股，否則國庫券")
+    for bars, vals, dds, dx in ((b1, plain, dd_plain, -2), (b2, filt, dd_filt, 2)):
+        for b, v, d in zip(bars, vals, dds):
+            ax3.annotate(f"{v:.1f}\n({d:.0f}%)", (b.get_x() + b.get_width() / 2, v), xytext=(dx, 3), textcoords="offset points", ha="center", fontsize=7.5)
+    ax3.set_xticks(x); ax3.set_xticklabels([g for _, g in groups], fontsize=9)
+    ax3.set_title(f"加 QQQ {sma} 日線濾網：前 5 隻的 CAGR（括號為最大回撤）", loc="left", fontsize=12)
+    ax3.set_ylabel("2000 至 2024 年 CAGR（%）")
+    ax3.legend(frameon=False, loc="upper left", fontsize=9)
+    ax3.grid(axis="y", alpha=0.25); ax3.spines[["top", "right"]].set_visible(False)
+    ax3.set_ylim(0, max(plain + filt) * 1.3)
+    fig.savefig(path, dpi=150, bbox_inches="tight")
     plt.close(fig)
 
 

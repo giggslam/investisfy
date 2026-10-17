@@ -23,7 +23,7 @@ python sp500_optimize_qqq2.py             # 第三輪：波動率目標的改良
 python sp500_strategy_table.py            # 全部策略總表
 python sp500_walk_forward.py              # 走動式樣本外測試（約 5 秒）
 python sp500_cross_asset.py               # 跨資產驗證（首次下載 18 檔 ETF，約 30 秒）
-python sp500_top5_monthly.py              # 每月換成動能最高 N 隻（含 800 組隨機對照，約 4 分鐘）
+python sp500_top5_monthly.py              # 每月換成動能最高 N 隻，含 QQQ 200 日線濾網版與 1,600 組隨機對照（約 9 分鐘）
 ```
 
 | 檔案 | 內容 |
@@ -63,8 +63,8 @@ python sp500_top5_monthly.py              # 每月換成動能最高 N 隻（含
 | `sp500_walk_forward_params.csv`、`_equity.csv`、`_summary.csv`、`docs/walk_forward.png` | 每次重選的參數、拼接的樣本外淨值、指標與折價、配對蒙地卡羅，與圖 |
 | `sp500_cross_asset.py` | 跨資產驗證：凍結參數的 8 條規則套到 18 檔 ETF |
 | `sp500_cross_asset_metrics.csv`、`_mc.csv`、`_summary.csv`、`_equity_post2009.csv`、`docs/cross_asset.png` | 資產 × 規則 × 期間指標、配對蒙地卡羅、彙總與符號檢定、2010 後淨值，與熱圖 |
-| `sp500_top5_monthly.py` | 每月換成動能最高 N 隻：五種動能定義 × N = 5 / 10 / 20 / 50，隨機對照，2025-26 今日名單 |
-| `sp500_top5_monthly_summary.csv`、`_yearly.csv`、`_equity.csv`、`_equity_2025_2026.csv`、`_random.csv`、`docs/top5_monthly.png` | 指標與分期 CAGR、逐年、淨值、2025-26 淨值、800 組隨機組合，與圖 |
+| `sp500_top5_monthly.py` | 每月換成動能最高 N 隻：五種動能定義 × N = 5 / 10 / 20 / 50，每個組合另跑 QQQ 均線濾網版（`--sma`，預設 200；`--chart-only` 只重畫圖），隨機對照（有無濾網各 200 組），2025-26 今日名單 |
+| `sp500_top5_monthly_summary.csv`、`_yearly.csv`、`_equity.csv`、`_equity_2025_2026.csv`、`_random.csv`、`docs/top5_monthly.png` | 指標與分期 CAGR、逐年、淨值、2025-26 淨值、1,600 組隨機組合（有無濾網），與圖 |
 | `prices_long_cache.csv`、`membership_long.pkl`、`spy_long_cache.csv` | 26 年股價、歷史成員矩陣與 SPY 快取（未提交，`--build` 重建） |
 
 ---
