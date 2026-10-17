@@ -1,5 +1,7 @@
 # investisfy
 
+完整分析報告：[docs/ANALYSIS.md](docs/ANALYSIS.md)（2024-01-02 至 2026-10-16 的動能評分、事後校準與買入點反推）。
+
 ## S&P 500 momentum scorer (`sp500_momentum.py`)
 
 Fetches the current S&P 500 constituents, downloads daily adjusted close prices
