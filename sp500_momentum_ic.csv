@@ -1,0 +1,9 @@
+﻿forward,measure,days,mean_ic,std_ic,t_stat,pct_positive_days,first_date,last_date
+fwd_21d_pct,short_momentum,659,0.0227,0.1639,3.55,54.6,2024-02-01,2026-09-17
+fwd_21d_pct,medium_momentum,617,-0.0102,0.1868,-1.36,52.8,2024-04-03,2026-09-17
+fwd_21d_pct,long_momentum,428,0.0249,0.1961,2.63,55.8,2025-01-02,2026-09-17
+fwd_21d_pct,composite_score,428,0.0073,0.1867,0.81,55.4,2025-01-02,2026-09-17
+fwd_63d_pct,short_momentum,617,-0.0114,0.1774,-1.6,50.1,2024-02-01,2026-07-20
+fwd_63d_pct,medium_momentum,575,-0.0293,0.1819,-3.87,47.5,2024-04-03,2026-07-20
+fwd_63d_pct,long_momentum,386,0.0275,0.146,3.7,60.6,2025-01-02,2026-07-20
+fwd_63d_pct,composite_score,386,-0.0106,0.1728,-1.2,57.8,2025-01-02,2026-07-20

@@ -1,0 +1,5 @@
+﻿days_after_trough,n,ret5_median,ret10_median,ret20_median,pct_vs_sma20_median,pct_vs_sma50_median,pct_vs_sma200_median,dd_from_hi252_median,up_from_lo252_median,short_score_median,medium_score_median,above_sma20_pct,above_sma50_pct,sma20_gt_sma50_pct
+0,1458,-7.14,-8.67,-10.14,-7.9,-9.52,-10.52,-25.44,14.59,-8.0,-6.0,2.5,7.8,28.1
+5,1448,6.82,-0.51,-3.07,-0.2,-2.95,-3.05,-19.26,24.1,-4.0,-4.0,44.3,28.0,22.5
+10,1413,2.57,9.78,0.09,2.86,0.07,-0.65,-17.15,27.42,-1.0,-2.0,70.1,43.6,21.4
+20,1284,2.22,4.88,14.94,4.85,4.73,4.53,-12.12,31.03,8.0,1.0,90.9,70.6,44.5
