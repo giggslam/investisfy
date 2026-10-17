@@ -1,113 +1,52 @@
 # investisfy
 
-完整分析報告：[docs/ANALYSIS.md](docs/ANALYSIS.md)（2024-01-02 至 2026-10-16 的動能評分、事後校準與買入點反推）。
+S&P 500 動能研究：從事後股價反推動能、校準分數的預測力、從贏家反推買入點、以 3 到 5 隻持倉回測，最後用 2000 至 2024 年的時點成份股宇宙驗證。所有結果都可用本 repo 的腳本重算。
 
-## S&P 500 momentum scorer (`sp500_momentum.py`)
+**一句話結論**：2024 至 2026 年看起來有效的動能策略（CAGR 62% 到 83%），放到 2000 至 2024 年的時點宇宙只有 -0.6% 到 5.7%，輸給 SPY，且比隨機選股差。S&P 500 內部跨 25 年穩定存在的是極端下跌後的反轉，不是動能延續。
 
-Fetches the current S&P 500 constituents, downloads daily adjusted close prices
-from 2024-01-01 to today (Yahoo Finance via `yfinance`), measures each stock's
-realised momentum over three horizons and writes the result to a CSV.
+## 文件索引
 
-| Horizon | Window                                   |
-|---------|------------------------------------------|
-| short   | last 21 trading days (~1 month)          |
-| medium  | last 63 trading days (~3 months)         |
-| long    | last 252 trading days (~1 year)          |
+| # | 文件 | 內容 | 關鍵數字 |
+|---|---|---|---|
+| 1 | [方法](docs/01-method.md) | 三階段動能定義、橫斷面十分位評分、事後反推的兩種用法 | 短期 21 日、中期 63 日、長期 252 日；+1 到 +10、-1 到 -10 |
+| 2 | [當前快照](docs/02-snapshot.md) | 2026-10-16 的 503 隻評分、前後十名、產業表 | 長期上升 332 隻；能源 21 隻中 14 隻三階段全升 |
+| 3 | [2024 至 2026 的接續性](docs/03-persistence-2024-2026.md) | 去年排名對今年的預測力、大反轉與大翻身名單 | Spearman 0.094；29 隻大反轉、33 隻大翻身 |
+| 4 | [事後校準](docs/04-calibration.md) | 每日即時分數對之後 21 / 63 日報酬的校準表、資訊係數、分數持續性 | 只有 +10 有超額（21 日 +2.4% 到 +3.5%）；-10 平均反彈 |
+| 5 | [從贏家反推買入點](docs/05-entry-points.md) | 1,458 次贏家行情的低點剖面、15 種即時訊號排名、目前候選 | 下跌後急拉訊號：低點後 9 天觸發、63 日超額 +7.0% |
+| 6 | [組合回測：3 到 5 隻持倉](docs/06-portfolio-backtest.md) | 960 組網格、壓力測試、入選策略 | double_10 5 隻 63 日：CAGR 83%、回撤 -40%；但隨機剔除 36 隻股票可使 CAGR 在 17% 到 99% 間跳動 |
+| 7 | [2000 至 2024 年長期回測](docs/07-backtest-2000-2024.md) | 時點成份股宇宙、逐年與分期報酬、隨機基準、存活偏差量化 | CAGR 3.4% / -0.6% / 5.7% vs SPY 7.7%；今日名單多出 9 到 20 個百分點 |
+| 8 | [結論與限制](docs/08-conclusions.md) | 全部結論與方法限制 | |
+| 9 | [重跑方式與檔案清單](docs/09-reproduce.md) | 指令與每個輸出檔的說明 | |
+| | [完整報告（單一檔）](docs/ANALYSIS.md) | 第 1 到 9 節合併版 | |
 
-Scores are cross-sectional decile ranks per horizon:
+## 腳本
 
-* rising stocks: **+1** (slowest rise) … **+10** (fastest rise)
-* falling stocks: **-1** (slowest fall) … **-10** (fastest fall)
-* unchanged: 0
+| 腳本 | 功能 | 主要輸出 |
+|---|---|---|
+| `sp500_momentum.py` | 成份股、股價下載與快取、三階段動能評分；`--asof` 重建任一天的快照；`--mode history` 每日即時分數、未來報酬、校準表、資訊係數 | `sp500_momentum.csv`、`sp500_momentum_calibration.csv`、`sp500_momentum_ic.csv` |
+| `sp500_entry_points.py` | zigzag 找出贏家行情，事後對照 15 種即時進場訊號 | `sp500_entry_runs.csv`、`sp500_entry_signals.csv`、`sp500_entry_trough_profile.csv`、`sp500_entry_candidates.csv` |
+| `sp500_backtest.py` | 3 到 5 隻持倉的組合回測引擎與網格搜尋 | `sp500_backtest_grid.csv`、`sp500_backtest_maxreturn_*`、`sp500_backtest_robust_*` |
+| `sp500_backtest_long.py` | 2000 至 2024 年時點成份股宇宙回測、隨機基準、存活偏差對照 | `sp500_backtest_long_summary.csv`、`_yearly.csv`、`_equity.csv`、`_trades_A.csv`、`_trades_B.csv` |
+
+## 快速開始
 
 ```bash
 pip install -r requirements.txt
-python sp500_momentum.py                       # -> sp500_momentum.csv (2024-01-01 .. today)
-python sp500_momentum.py --method regression   # slope x R^2 momentum instead of plain return
-python sp500_momentum.py --start 2026-01-01 --long 0 --out sp500_momentum_2026.csv   # 2026 only, long = YTD
+python sp500_momentum.py --mode both        # 快照 + 每日歷史 + 校準 + IC（建立 prices_cache.csv）
+python sp500_entry_points.py                # 贏家行情與進場訊號
+python sp500_backtest.py --grid             # 3 到 5 隻持倉網格回測
+python sp500_backtest_long.py --build       # 2000-2024 回測（首次下載歷史名單與 26 年股價，約 10 分鐘）
 ```
 
-Output columns include Symbol, Security, Sector, start/end date and price,
-full-period return, per-calendar-year returns (ret_2024_pct, ret_2025_pct, ret_2026_pct), period high/low, max drawdown, annualised volatility, and for each
-horizon the window length, return %, momentum value and score, plus a
-`composite_score` (mean of the three) and a `trend` flag (UP_ALL / DOWN_ALL / MIXED).
+快取檔（`prices_cache.csv`、`prices_long_cache.csv`、`membership_long.pkl`、`spy_long_cache.csv`）與 28 MB 的 `sp500_momentum_history.csv` 不進 git，重跑即可產生。
 
-Generated files: `sp500_momentum.csv` (2024-01-01 .. today) and `sp500_momentum_2026.csv` (2026 YTD only).
+## 資料來源
 
-### Point-in-time history and hindsight calibration
+- 成份股名單：[datasets/s-and-p-500-companies](https://github.com/datasets/s-and-p-500-companies)（現行），[fja05680/sp500](https://github.com/fja05680/sp500)（1996 年起每日歷史成員）。
+- 股價：Yahoo Finance 調整後收盤價，透過 `yfinance`。已下市的歷史成份股沒有價格資料，長期回測因此仍有殘餘的存活偏差。
 
-```bash
-python sp500_momentum.py --asof 2026-04-08      # snapshot exactly as it looked on that day (no look-ahead)
-python sp500_momentum.py --mode history         # daily scores for every stock + calibration + IC tables
-python sp500_momentum.py --mode both --step 5   # sample the history every 5 trading days
-```
+## 評分規則摘要
 
-`history` mode recomputes the three momentum measures and cross-sectional scores for
-**every trading day using only prices up to that day**, then attaches the realised
-forward return 21 and 63 trading days later (`--fwd`). Horizons use strict windows
-(21/63/252 observations), so the long score starts one year after the first price.
+每天在全體成份股中做橫斷面十分位排名：上升的股票依速度給 +1（最慢）到 +10（最快），下降的股票依跌速給 -1（最慢）到 -10（最快），持平為 0。分數是相對排名，不是絕對報酬門檻。
 
-| File | Content |
-|------|---------|
-| `<stem>_history.csv` | one row per (date, stock): close, short/medium/long return, momentum, score, composite, `fwd_21d_pct`, `fwd_63d_pct` (not committed, ~28 MB; regenerate with the command above) |
-| `<stem>_calibration.csv` | per horizon and score bucket: n, mean/median forward return, hit rate (% > 0), continuation rate (% same sign as the score), excess vs the universe mean on the same dates, p10/p90 |
-| `<stem>_ic.csv` | information coefficient: mean daily Spearman rank correlation between each measure and the forward return, std, t-stat, % positive days |
-| `<stem>_ic_daily.csv` | the daily IC series behind the summary |
-
-Downloaded prices are cached in `prices_cache.csv` (ignored by git); pass `--cache ''` to disable.
-
-## Entry points reverse-engineered from the winners (`sp500_entry_points.py`)
-
-Hindsight event study on the cached prices:
-
-1. A 10% zigzag splits every price path into legs; each trough-to-peak leg gaining
-   at least 30% is a **winning run** (the trough is the true, unobservable start).
-2. A set of real-time entry signals (moving-average crosses, 20/50-day and 52-week
-   breakouts, 10-day thrusts, momentum-score flips, "turn" signals that require the
-   thrust to start from a falling state) is evaluated on every day with no look-ahead.
-3. For every run: when each signal first fired after the trough (lag), the entry price
-   and how much of the run was still ahead. For every firing anywhere: forward 63-day
-   return, hit rate, excess vs the universe, how often it sits inside the first 20 days
-   of a winning run.
-
-```bash
-python sp500_momentum.py            # builds prices_cache.csv
-python sp500_entry_points.py        # -> sp500_entry_runs.csv, _signals.csv, _trough_profile.csv, _candidates.csv
-python sp500_entry_points.py --reversal 0.08 --min-gain 0.40 --recent 5 --top 3
-```
-
-| File | Content |
-|------|---------|
-| `sp500_entry_runs.csv` | one row per winning run (trough/peak date and price, gain, length, features at the trough, each signal's lag / entry / captured %) |
-| `sp500_entry_signals.csv` | signal league table: fires per stock-year, coverage, median lag, median captured %, early-in-run precision vs baseline, forward 63-day excess / hit / big-win / bust rates |
-| `sp500_entry_trough_profile.csv` | median features of winners 0, 5, 10 and 20 days after the trough |
-| `sp500_entry_candidates.csv` | stocks where the top-ranked signals fired in the last N trading days |
-
-## Portfolio back-test of the entry signals (`sp500_backtest.py`)
-
-Back-tests the entry signals as a concentrated portfolio (3 to 5 positions). A signal seen at
-the close of day t-1 is bought at the close of day t, each position gets NAV / max_positions,
-exits are time stop, trailing stop, fixed stop or a rule exit, 0.10% cost per side.
-
-```bash
-python sp500_backtest.py --grid                                   # staged grid search -> sp500_backtest_grid.csv
-python sp500_backtest.py --run breakout_52w_high 3 42 none none none ret10   # one configuration with trade log
-```
-
-Every run reports full-period, in-sample (2025) and out-of-sample (2026) CAGR. Results and
-the robustness checks (random tie-breaking, removal of the largest winners, start-date
-shifts, random-entry baseline) are discussed in `docs/ANALYSIS.md`.
-
-## 2000-2024 long-horizon back-test (`sp500_backtest_long.py`)
-
-Runs the selected double +10 strategies over 2000-2024 with a **point-in-time** S&P 500
-universe (daily membership from the public fja05680/sp500 dataset; delisted tickers have
-no Yahoo history and are missing). Also runs the same rules on today's constituents only to
-measure survivorship inflation. Result: the strategies that returned 62-83% a year in
-2025-2026 made -0.6% to 5.7% a year over 2000-2024 and trailed SPY; see `docs/ANALYSIS.md`
-section 7.
-
-```bash
-python sp500_backtest_long.py --build   # first run downloads membership + 26 years of prices
-python sp500_backtest_long.py           # re-run from caches
-```
+本 repo 是研究紀錄，不是投資建議。
