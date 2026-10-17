@@ -1,6 +1,6 @@
 # 11. 重跑方式與檔案清單
 
-[回索引](../README.md) · [完整報告](./ANALYSIS.md) · [上一節](./10-conclusions.md)
+[回索引](../README.md) · [完整報告](./ANALYSIS.md) · [上一節](./10-conclusions.md) · [下一節](./12-strategy-table.md)
 
 > 資料：S&P 500 成份股，Yahoo Finance 調整後收盤價。短期分析期間 2024-01-02 至 2026-10-16；長期回測 2000-01-03 至 2024-12-31。
 
@@ -20,6 +20,7 @@ python sp500_beat_qqq.py --chart-only qqq_sma_200_monthly qqq_sma_200_dd_15 qqq_
 python sp500_random_entry_mc.py --n 5000 --min-years 1 --max-years 20   # 隨機進場蒙地卡羅
 python sp500_optimize_qqq.py              # 第二代規則（波動率目標、部分減碼、投票、寬度、四資產、混合）
 python sp500_optimize_qqq2.py             # 第三輪：波動率目標的改良與組合
+python sp500_strategy_table.py            # 全部策略總表
 ```
 
 | 檔案 | 內容 |
@@ -53,8 +54,10 @@ python sp500_optimize_qqq2.py             # 第三輪：波動率目標的改良
 | `sp500_optimize_qqq_summary.csv`、`_entry_windows.csv`、`_mc_summary.csv`、`_mc_by_hold.csv`、`_equity.csv`、`docs/optimize_qqq.png` | 29 組規則的全期指標、進場視窗、配對蒙地卡羅與圖 |
 | `sp500_optimize_qqq2.py` | 第三輪：EWMA、下跌波動、VIX、波動擴張、權重下限、每週、回補、門檻帶、組合 |
 | `sp500_optimize_qqq2_summary.csv`、`_equity.csv`、`docs/optimize_qqq2.png` | 39 組改良規則的指標、配對蒙地卡羅、2009 後與無崩盤切面，與圖 |
+| `sp500_strategy_table.py` | 把所有階段的策略放到同一比較表 |
+| `strategy_table_2000_2024.csv`、`strategy_table_2025_2026.csv`、`docs/12-strategy-table.md` | 103 條曲線的共同期間指標與蒙地卡羅、2025-26 表、策略總表頁 |
 | `prices_long_cache.csv`、`membership_long.pkl`、`spy_long_cache.csv` | 26 年股價、歷史成員矩陣與 SPY 快取（未提交，`--build` 重建） |
 
 ---
 
-[回索引](../README.md) · [完整報告](./ANALYSIS.md) · [上一節](./10-conclusions.md)
+[回索引](../README.md) · [完整報告](./ANALYSIS.md) · [上一節](./10-conclusions.md) · [下一節](./12-strategy-table.md)

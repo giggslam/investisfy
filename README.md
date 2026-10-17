@@ -19,7 +19,8 @@ S&P 500 動能研究：從事後股價反推動能、校準分數的預測力、
 | 9 | [允許空倉：任意時點進場能否跑贏 QQQ](docs/09-beat-qqq.md) | 27 組全進全出擇時規則、進場視窗勝率、10 萬本金範例、5,000 次隨機進場蒙地卡羅、29 組第二代按比例調整規則、39 組第三輪波動率目標改良 | 全進全出規則在 82% 到 88% 的情境輸給 QQQ；波動率目標與其組合版能打平或略勝（CAGR 中位數 14.8% 到 15.3% 對 14.5%、最差 -41% 對 -63%），但優勢全來自崩盤視窗，2009 年後進場仍有約九成小輸；再調參數只是擬合 2008 與 2020 兩個事件 |
 | 10 | [結論與限制](docs/10-conclusions.md) | 全部結論與方法限制 | |
 | 11 | [重跑方式與檔案清單](docs/11-reproduce.md) | 指令與每個輸出檔的說明 | |
-| | [完整報告（單一檔）](docs/ANALYSIS.md) | 第 1 到 11 節合併版 | |
+| 12 | [全部策略總表](docs/12-strategy-table.md) | 所有階段的策略在同一共同期間的 CAGR、波動、Sharpe、最大回撤、Calmar、最差年、10 萬終值，同一組蒙地卡羅，以及 2025-26 表 | 可投資最高 CAGR：波動率目標 20% / 63 日 10.2%、組合規則 9.8%、200 日線月底 9.4%；QQQ 7.2%、SPY 7.9%；選股全部 6% 以下 |
+| | [完整報告（單一檔）](docs/ANALYSIS.md) | 第 1 到 12 節合併版 | |
 
 ## 腳本
 
@@ -35,6 +36,7 @@ S&P 500 動能研究：從事後股價反推動能、校準分數的預測力、
 | `sp500_random_entry_mc.py` | 5,000 次隨機進場、持有 1 到 20 年的蒙地卡羅，策略對 QQQ 配對比較 | `sp500_random_entry_mc_*.csv`、`docs/random_entry_mc.png` |
 | `sp500_optimize_qqq.py` | 第二代可空倉規則（波動率目標、部分減碼、投票、不對稱趨勢、寬度、四資產動能、混合）對 QQQ | `sp500_optimize_qqq_*.csv`、`docs/optimize_qqq.png` |
 | `sp500_optimize_qqq2.py` | 第三輪：波動率目標的改良（EWMA、下跌波動、VIX、波動擴張、下限、每週、回補、門檻帶）與組合 | `sp500_optimize_qqq2_*.csv`、`docs/optimize_qqq2.png` |
+| `sp500_strategy_table.py` | 所有策略的統一比較表（共同期間指標、配對蒙地卡羅、2025-26） | `strategy_table_2000_2024.csv`、`strategy_table_2025_2026.csv`、`docs/12-strategy-table.md` |
 
 ## 快速開始
 
@@ -50,6 +52,7 @@ python sp500_beat_qqq.py                    # 允許空倉的擇時策略對 QQQ
 python sp500_random_entry_mc.py             # 5,000 次隨機進場蒙地卡羅
 python sp500_optimize_qqq.py                # 第二代規則對 QQQ
 python sp500_optimize_qqq2.py               # 第三輪波動率目標改良
+python sp500_strategy_table.py              # 全部策略總表
 ```
 
 快取檔（`prices_cache.csv`、`prices_long_cache.csv`、`membership_long.pkl`、`spy_long_cache.csv`、`spy_full_cache.csv`、`qqq_full_cache.csv`、`tlt_full_cache.csv`、`gld_full_cache.csv`、`irx_cache.csv`、`vix_cache.csv`）與 28 MB 的 `sp500_momentum_history.csv` 不進 git，重跑即可產生。
