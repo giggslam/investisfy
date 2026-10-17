@@ -91,6 +91,8 @@ def backtest(
     rule_exit: str | None,
     cost: float = COST,
     start: int = 0,
+    regime: np.ndarray | None = None,     # (T,) bool: False = risk-off, exit everything and buy nothing
+    cash_rate: np.ndarray | None = None,  # (T,) daily return earned on cash (e.g. T-bill yield / 252)
 ):
     T, N = close.shape
     cash = 1.0
@@ -99,6 +101,9 @@ def backtest(
     trades = []
     for t in range(start, T):
         px = close[t]
+        if cash_rate is not None and t > start and not np.isnan(cash_rate[t]):
+            cash *= 1.0 + cash_rate[t]
+        risk_on = True if regime is None else bool(regime[t])
         # ---- exits at this close
         for j in list(held):
             sh, epx, et, hi = held[j]
@@ -108,7 +113,9 @@ def backtest(
             hi = max(hi, p)
             held[j][3] = hi
             reason = None
-            if hold is not None and t - et >= hold:
+            if not risk_on:
+                reason = "regime"
+            elif hold is not None and t - et >= hold:
                 reason = "time"
             elif stop is not None and p / epx - 1 <= -stop:
                 reason = "stop"
@@ -124,7 +131,7 @@ def backtest(
                 del held[j]
         # ---- entries: signals from the previous close, bought at this close
         free = max_pos - len(held)
-        if t > 0 and free > 0:
+        if t > 0 and free > 0 and risk_on:
             cand = np.where(fires[t - 1])[0]
             cand = [j for j in cand if j not in held and not np.isnan(px[j])]
             if cand:
