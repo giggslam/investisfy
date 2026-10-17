@@ -92,6 +92,51 @@ def load_all() -> dict[str, pd.Series]:
     return curves
 
 
+def chart_yearly(yearly: pd.DataFrame, total: pd.DataFrame, path: str) -> None:
+    """Heatmap of yearly returns (years x strategies) with a CAGR-to-today bar column."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from matplotlib.colors import LinearSegmentedColormap, TwoSlopeNorm
+    plt.rcParams["font.family"] = "WenQuanYi Zen Hei"
+    plt.rcParams["axes.unicode_minus"] = False
+    cmap = LinearSegmentedColormap.from_list("div", ["#eb6834", "#fbe9e1", "#f7f7f7", "#dfe9f7", "#2a78d6"])
+    cmap.set_bad("#d9d9d9")
+    vals = yearly.T  # strategies x years
+    fig = plt.figure(figsize=(18, 0.42 * len(vals) + 2.6))
+    gs = fig.add_gridspec(1, 2, width_ratios=[vals.shape[1], 4], wspace=0.02)
+    ax = fig.add_subplot(gs[0, 0]); axb = fig.add_subplot(gs[0, 1], sharey=ax)
+    lim = 60.0
+    norm = TwoSlopeNorm(vmin=-lim, vcenter=0.0, vmax=lim)
+    im = ax.imshow(np.ma.masked_invalid(vals.to_numpy(dtype=float)), cmap=cmap, norm=norm, aspect="auto")
+    ax.set_xticks(range(vals.shape[1])); ax.set_xticklabels([c.replace(" 至 10-16", "*") for c in vals.columns], rotation=0, fontsize=9)
+    ax.set_yticks(range(vals.shape[0])); ax.set_yticklabels(vals.index, fontsize=10)
+    ax.set_xticks(np.arange(-0.5, vals.shape[1], 1), minor=True); ax.set_yticks(np.arange(-0.5, vals.shape[0], 1), minor=True)
+    ax.grid(which="minor", color="white", lw=1.2); ax.tick_params(which="minor", length=0)
+    for spine in ax.spines.values():
+        spine.set_visible(False)
+    for i in range(vals.shape[0]):
+        for j in range(vals.shape[1]):
+            v = vals.iat[i, j]
+            if np.isnan(v):
+                continue
+            ax.text(j, i, f"{v:.0f}", ha="center", va="center", fontsize=7.5, color="white" if abs(v) > 0.6 * lim else "#222222")
+    ax.set_title("各策略逐年報酬（%）：2000 年到 2026-10-16。標 * 的選股策略 2025 年起接今日名單；2026 為年初至 10-16", loc="left", fontsize=12)
+    cag = total.loc[vals.index, "CAGR %"].to_numpy(dtype=float)
+    colors = ["#2a78d6" if c >= 0 else "#eb6834" for c in cag]
+    axb.barh(range(len(cag)), cag, color=colors, height=0.7)
+    for i, c in enumerate(cag):
+        axb.text(c + 0.3, i, f"{c:.1f}%", va="center", fontsize=8.5)
+    axb.set_xlim(0, max(cag) * 1.35)
+    axb.set_title("至今 CAGR", loc="left", fontsize=10)
+    axb.tick_params(axis="y", left=False, labelleft=False); axb.set_xticks([])
+    for spine in axb.spines.values():
+        spine.set_visible(False)
+    axb.invert_yaxis() if False else None
+    fig.savefig(path, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+
+
 def md(df: pd.DataFrame) -> str:
     cols = list(df.columns)
     out = ["| " + " | ".join(cols) + " |", "|" + "|".join(["---"] * len(cols)) + "|"]
@@ -215,6 +260,7 @@ def main() -> int:
     out_y = pd.concat([yt, total], axis=1)
     out_y.to_csv("strategy_table_yearly.csv", encoding="utf-8-sig")
     yearly_md = md(yearly.round(1).reset_index().rename(columns={"index": "年"}))
+    chart_yearly(yearly, total, "docs/strategy_yearly.png")
     total_md = md(total.reset_index().rename(columns={"index": "策略"}))
 
     # ---- markdown page
@@ -260,9 +306,13 @@ def main() -> int:
 
 每年報酬 = 該年最後收盤 ÷ 前一年最後收盤 − 1（首年用該曲線的第一個收盤）。標 * 的選股策略是兩段接起來的：2000 至 2024 年用時點成份股宇宙，2025 年起接上今日名單的曲線（選股 A、B 與成員等權從 2025-01-02，每月前 N 隻從 2025-02-03，接點前視為持平）；今日名單有存活偏差，2025 年以後的數字偏樂觀，與前面各年不是同一個宇宙。QQQ 擇時與波動率目標規則從 2000-03-01 起算（QQQ 資料 1999 年 3 月起，需 252 日暖身），其餘從 2000-01-03。完整數字在 `strategy_table_yearly.csv`。
 
+![逐年報酬熱圖](./strategy_yearly.png)
+
 {yearly_md}
 
 {total_md}
+
+熱圖怎麼讀：每格是該策略該年的報酬，藍色為正、橘色為負，深淺按絕對值；灰格為沒有資料。右側的 CAGR 是各曲線從自己的起始日到 2026-10-16。加濾網的選股列在 2001、2002、2008 年接近零（持國庫券），這三格就是它 25 年領先的全部來源；2025 到 2026 年的深藍格是今日名單的存活偏差。
 """
     nav = "[回索引](../README.md) · [完整報告](./ANALYSIS.md) · [上一節](./11-reproduce.md) · [下一節](./13-walk-forward.md)"
     body = page.split("\n", 2)[2].replace("\n### 12.", "\n## 12.")
