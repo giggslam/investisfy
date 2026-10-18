@@ -15,7 +15,8 @@ Instead of searching for a rule, inject a controlled amount of hindsight and mea
 Each noisy setting is repeated over several seeds and the median CAGR / MDD is reported for 2000-2024.
 
 Usage: python sp500_skill_needed.py [--sizes 5,20] [--seeds 5] [--out sp500_skill_needed] [--chart docs/skill_needed.png] [--chart-only]
-Outputs: <out>_selection.csv, <out>_timing.csv, <chart>
+Outputs: <out>_selection.csv, <out>_timing.csv, <out>_combined.csv, <chart>, <chart>_combined.png
+* Combined: selection IC and timing hit rate together (timing on next-month SPY direction; called-down months sit in T-bills).
 """
 
 from __future__ import annotations
@@ -96,6 +97,71 @@ def run_timing(qqq: pd.Series, irx: pd.Series, mes: list[pd.Timestamp], seeds: i
     return pd.DataFrame(rows)
 
 
+COMBO_ICS = [0.0, 0.03, 0.05, 0.10, 0.15, 0.20, 0.30]
+COMBO_HITS = [0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+
+
+def run_combined(px, eligible, spy: pd.Series, irx: pd.Series, mes: list[pd.Timestamp], sizes: list[int], seeds: int) -> pd.DataFrame:
+    """Selection IC and timing hit rate together: in months called 'down' the book sits in T-bills."""
+    fwd = forward_returns(px, eligible, mes)
+    idx = px.index
+    cash_daily = (irx.reindex(idx).ffill().fillna(0) / 100 / 252).to_numpy()
+    spy_next = {}
+    for k in range(len(mes) - 1):
+        a = idx.get_loc(mes[k]) + 1; b = idx.get_loc(mes[k + 1]) + 1
+        if b >= len(idx):
+            break
+        spy_next[mes[k]] = spy.iloc[b] / spy.iloc[a] - 1
+    rows = []
+    for n in sizes:
+        for ic in COMBO_ICS:
+            for p in COMBO_HITS:
+                res = []
+                for s in range(seeds if (ic < 1 and p < 1) else 1):
+                    rng = np.random.default_rng(s)
+                    picks = picks_with_ic(fwd, ic, n, rng)
+                    for d in list(picks):
+                        up = spy_next[d] > 0
+                        hold = up if rng.random() < p else not up
+                        if not hold:
+                            picks[d] = []
+                    res.append(stats(T5.run_portfolio(px, picks, cash_daily=cash_daily)))
+                cagr = float(np.median([x[0] for x in res])); mdd = float(np.median([x[1] for x in res]))
+                rows.append({"n": n, "ic": ic, "hit": p, "cagr": cagr, "mdd": mdd, "mdd_worst": min(x[1] for x in res), "runs": len(res)})
+                print(f"top{n:>2} IC={ic:.2f} hit={p:.1f}  CAGR {cagr*100:6.1f}%  MDD {mdd*100:6.1f}%", flush=True)
+    return pd.DataFrame(rows)
+
+
+def chart_combined(comb: pd.DataFrame, path: str) -> None:
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    plt.rcParams["font.family"] = "WenQuanYi Zen Hei"
+    plt.rcParams["axes.unicode_minus"] = False
+    sizes = sorted(comb.n.unique())
+    fig, axes = plt.subplots(1, len(sizes), figsize=(7.2 * len(sizes), 6), squeeze=False)
+    fig.suptitle("選股加擇時：每格 = 中位 CAGR / MDD（2000 至 2024）；綠格同時達成 CAGR ≥ 30% 且 MDD ≤ 30%，黃格只達成一項", x=0.01, ha="left", fontsize=12)
+    for ax, n in zip(axes[0], sizes):
+        g = comb[comb.n == n]
+        ics = sorted(g.ic.unique()); hits = sorted(g.hit.unique())
+        for i, ic in enumerate(ics):
+            for j, p in enumerate(hits):
+                r = g[(g.ic == ic) & (g.hit == p)].iloc[0]
+                ok_c = r.cagr >= 0.30; ok_m = r.mdd >= -0.30
+                col = "#1baf7a" if ok_c and ok_m else ("#eda100" if ok_c or ok_m else "#eeeeee")
+                ax.add_patch(plt.Rectangle((j, i), 1, 1, color=col, alpha=0.55 if col != "#eeeeee" else 1, ec="white", lw=1.5))
+                ax.text(j + 0.5, i + 0.5, f"{r.cagr*100:.0f}% / {r.mdd*100:.0f}%", ha="center", va="center", fontsize=8.5, color="#222222")
+        ax.set_xlim(0, len(hits)); ax.set_ylim(0, len(ics))
+        ax.set_xticks([k + 0.5 for k in range(len(hits))]); ax.set_xticklabels([f"{p*100:.0f}%" for p in hits])
+        ax.set_yticks([k + 0.5 for k in range(len(ics))]); ax.set_yticklabels([f"{ic:.2f}" for ic in ics])
+        ax.set_xlabel("擇時命中率（下月 SPY 方向）"); ax.set_ylabel("選股 IC")
+        ax.set_title(f"每月前 {n} 隻", loc="left", fontsize=11)
+        ax.tick_params(length=0); ax.spines[["top", "right", "left", "bottom"]].set_visible(False)
+    fig.tight_layout(rect=(0, 0, 1, 0.94))
+    fig.savefig(path, dpi=150)
+    print(f"wrote {path}")
+
+
 def chart(sel: pd.DataFrame, tim: pd.DataFrame, path: str) -> None:
     import matplotlib
     matplotlib.use("Agg")
@@ -148,16 +214,27 @@ def main(argv=None) -> int:
     p.add_argument("--out", default="sp500_skill_needed")
     p.add_argument("--chart", default="docs/skill_needed.png")
     p.add_argument("--chart-only", action="store_true")
+    p.add_argument("--combined-only", action="store_true", help="only run the IC x hit-rate grid")
     args = p.parse_args(argv)
+    comb_chart = args.chart.replace(".png", "_combined.png")
     if args.chart_only:
         chart(pd.read_csv(f"{args.out}_selection.csv"), pd.read_csv(f"{args.out}_timing.csv"), args.chart)
+        chart_combined(pd.read_csv(f"{args.out}_combined.csv"), comb_chart)
         return 0
     px, member, eligible, spy = load_universe()
     mes = [d for d in T5.month_ends(px.index) if d >= pd.Timestamp("2000-02-29")]
+    irx = pd.read_csv("irx_cache.csv", index_col=0, parse_dates=True).squeeze().sort_index().reindex(px.index).ffill()
+    if args.combined_only:
+        comb = run_combined(px, eligible, spy, irx, mes, [int(x) for x in args.sizes.split(",")], args.seeds)
+        comb.to_csv(f"{args.out}_combined.csv", index=False, encoding="utf-8-sig")
+        chart_combined(comb, comb_chart)
+        return 0
     sel = run_selection(px, eligible, mes, [int(x) for x in args.sizes.split(",")], args.seeds)
     qqq = pd.read_csv("qqq_full_cache.csv", index_col=0, parse_dates=True).squeeze().sort_index().reindex(px.index).ffill()
-    irx = pd.read_csv("irx_cache.csv", index_col=0, parse_dates=True).squeeze().sort_index().reindex(px.index).ffill()
     tim = run_timing(qqq, irx, mes, args.timing_seeds)
+    comb = run_combined(px, eligible, spy, irx, mes, [int(x) for x in args.sizes.split(",")], args.seeds)
+    comb.to_csv(f"{args.out}_combined.csv", index=False, encoding="utf-8-sig")
+    chart_combined(comb, comb_chart)
     sel.to_csv(f"{args.out}_selection.csv", index=False, encoding="utf-8-sig")
     tim.to_csv(f"{args.out}_timing.csv", index=False, encoding="utf-8-sig")
     chart(sel, tim, args.chart)
