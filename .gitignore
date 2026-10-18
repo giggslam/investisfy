@@ -222,3 +222,5 @@ vix_cache.csv
 cross_asset_cache.csv
 precursor_events.csv
 precursor_events_top10.csv
+edgar_cache/
+volume_long_cache.csv
