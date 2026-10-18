@@ -220,3 +220,5 @@ gld_full_cache.csv
 ief_full_cache.csv
 vix_cache.csv
 cross_asset_cache.csv
+precursor_events.csv
+precursor_events_top10.csv
