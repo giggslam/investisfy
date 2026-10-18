@@ -24,6 +24,9 @@ python sp500_strategy_table.py            # 全部策略總表
 python sp500_walk_forward.py              # 走動式樣本外測試（約 5 秒）
 python sp500_cross_asset.py               # 跨資產驗證（首次下載 18 檔 ETF，約 30 秒）
 python sp500_top5_monthly.py              # 每月換成動能最高 N 隻，含 QQQ 200 日線濾網版與 1,600 組隨機對照（約 9 分鐘）
+python sp500_precursor_events.py          # 動能進榜事件表（約 1 分鐘）
+python sp500_precursor_technical.py       # 技術面前兆：成交量下載、37 特徵、走動式模型與組合（約 5 分鐘）
+python sp500_precursor_fundamental.py     # 基本面前兆：EDGAR 下載約 50 分鐘（之後從快取 3 分鐘）
 ```
 
 | 檔案 | 內容 |
@@ -65,6 +68,13 @@ python sp500_top5_monthly.py              # 每月換成動能最高 N 隻，含
 | `sp500_cross_asset_metrics.csv`、`_mc.csv`、`_summary.csv`、`_equity_post2009.csv`、`docs/cross_asset.png` | 資產 × 規則 × 期間指標、配對蒙地卡羅、彙總與符號檢定、2010 後淨值，與熱圖 |
 | `sp500_top5_monthly.py` | 每月換成動能最高 N 隻：五種動能定義 × N = 5 / 10 / 20 / 50，每個組合另跑 QQQ 均線濾網版（`--sma`，預設 200；`--chart-only` 只重畫圖），隨機對照（有無濾網各 200 組），2025-26 今日名單 |
 | `sp500_top5_monthly_summary.csv`、`_yearly.csv`、`_equity.csv`、`_equity_2025_2026.csv`、`_random.csv`、`docs/top5_monthly.png` | 指標與分期 CAGR、逐年、淨值、2025-26 淨值、1,600 組隨機組合（有無濾網），與圖 |
+| `sp500_precursor_events.py` | 動能進榜事件表：事件、對照組、事後報酬與續漲標籤 |
+| `precursor_events_sample.csv`、`precursor_events_top10_sample.csv` | 事件加抽樣對照（完整 10 萬列版本未提交，1 分鐘重建） |
+| `sp500_precursor_technical.py` | 技術面前兆：37 特徵、單因子 lift、時間切分模型、走動式組合 |
+| `precursor_tech_features.csv`、`_lift.csv`、`_model.csv`、`_model_coef.csv`、`_equity.csv`、`_summary.csv`、`docs/precursors_technical.png` | 特徵、lift 表、逐年樣本外 AUC / IC、係數穩定度、淨值、指標，與圖 |
+| `sp500_precursor_fundamental.py` | 基本面前兆：EDGAR XBRL 時點季報、15 特徵、模型、走動式組合 |
+| `precursor_fund_quarterly.csv`、`_features.csv`、`_lift.csv`、`_model.csv`、`_equity.csv`、`_summary.csv`、`docs/precursors_fundamental.png` | 季度財報長表、特徵、lift、逐年樣本外、淨值、指標，與圖 |
+| `volume_long_cache.csv`、`edgar_cache/` | 成交量快取與 EDGAR 回應快取（未提交，腳本重建） |
 | `prices_long_cache.csv`、`membership_long.pkl`、`spy_long_cache.csv` | 26 年股價、歷史成員矩陣與 SPY 快取（未提交，`--build` 重建） |
 
 ---

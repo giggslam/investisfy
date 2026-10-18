@@ -1,6 +1,6 @@
 # 16. 各策略操作方法
 
-[回索引](../README.md) · [完整報告](./ANALYSIS.md) · [上一節](./15-top5-monthly.md)
+[回索引](../README.md) · [完整報告](./ANALYSIS.md) · [上一節](./15-top5-monthly.md) · [下一節](./17-precursors.md)
 
 > 資料：S&P 500 成份股，Yahoo Finance 調整後收盤價。短期分析期間 2024-01-02 至 2026-10-16；長期回測 2000-01-03 至 2024-12-31。
 
@@ -85,4 +85,4 @@
 
 ---
 
-[回索引](../README.md) · [完整報告](./ANALYSIS.md) · [上一節](./15-top5-monthly.md)
+[回索引](../README.md) · [完整報告](./ANALYSIS.md) · [上一節](./15-top5-monthly.md) · [下一節](./17-precursors.md)

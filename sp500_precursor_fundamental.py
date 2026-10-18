@@ -704,6 +704,10 @@ def main(argv=None) -> int:
     print("\nsingle-feature lift (events vs sampled controls, 2010-2024):")
     print(lift[["feature", "n", "auc_entry", "lift_q5", "lift_q1", "auc_cont63", "cont_q5", "cont_q1", "median_event", "median_control"]].round(3).to_string(index=False))
 
+    e_acc = ec[(ec.is_event == 1) & (ec.complete63 == 1) & ec.rev_accel.notna()]
+    for name, m in (("rev_accel > 0", e_acc.rev_accel > 0), ("rev_accel <= 0", e_acc.rev_accel <= 0)):
+        print(f"  entrants with {name}: n={int(m.sum())}, cont63 rate {e_acc[m].cont63.mean() * 100:.1f}%, median ex63 {e_acc[m].ex63.median() * 100:.2f}%, mean ex63 {e_acc[m].ex63.mean() * 100:.2f}%")
+
     # ---------------------------------------------------------------- time-split models
     ev["exec_year"] = ev["exec_date"].dt.year
     R_all = month_rank(ev, FEATURES)
@@ -789,6 +793,14 @@ def main(argv=None) -> int:
                   f"fund_T1_top{n}": top_by("score_T1", n), f"rule_rev_accel_top{n}": top_by("rev_accel", n), f"rule_react_last_top{n}": top_by("react_last", n)}
     mom = T5.rank_frames(pxc, elc)["medium"]
     picks_sets[f"mom63_top{n}"] = {d: mom.loc[d].dropna().nlargest(n).index.tolist() for d in test_mes}
+    # does the fundamental information ADD to momentum? pre-select the 4N strongest momentum names, then pick N by the fundamental score
+    for col_name, label in (("score_T3", "T3"), ("score_T2", "T2"), ("rev_accel", "rev_accel")):
+        pk = {}
+        for d in test_mes:
+            cand = mom.loc[d].dropna().nlargest(4 * n).index
+            g = groups[d] if d in groups else None
+            pk[d] = g[g.ticker.isin(cand)].nlargest(n, col_name).ticker.tolist() if g is not None else []
+        picks_sets[f"mom63_top{4 * n}_then_{label}_top{n}"] = pk
     for name, pk in picks_sets.items():
         curves[name] = T5.run_portfolio(px, pk, cash_daily=cash)
         curves[f"{name}_r{args.sma}"] = T5.run_portfolio(px, gate(pk), cash_daily=cash)

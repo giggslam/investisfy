@@ -224,5 +224,3 @@ precursor_events.csv
 precursor_events_top10.csv
 edgar_cache/
 volume_long_cache.csv
-# temporary while the EDGAR fetch runs; removed in the final commit
-precursor_fund_quarterly.csv
