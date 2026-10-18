@@ -16,7 +16,7 @@ random N-stock portfolios, over the same months. For every curve the realised mo
 score and the realised hit rate of the switch are also reported, next to the grid cell they imply.
 
 Usage: python sp500_forward_search.py [--scores signal_audit_scores.csv] [--sizes 5,20]
-       [--switches none,qqq_sma200,spy_sma200,breadth50,vote3] [--random-runs 50] [--out forward_search]
+       [--switches none,qqq_sma200,qqq_dd15,spy_sma200,breadth50,vote3] [--random-runs 50] [--out forward_search]
        [--chart docs/forward_search.png] [--chart-only]
 """
 
@@ -54,10 +54,11 @@ def switch_calls(name: str, px: pd.DataFrame, member: pd.DataFrame, qqq: pd.Seri
     above200 = (px > px.rolling(200).mean()).where(member)
     breadth = above200.sum(axis=1) / member.sum(axis=1).replace(0, np.nan)
     mom121 = spy.shift(21) / spy.shift(252) - 1
+    q_dd = qqq / qqq.rolling(252).max() - 1
     calls = {}
     for d in mes:
-        a = bool(qqq[d] > q_sma[d]); b = bool(spy[d] > s_sma[d]); c = bool(breadth[d] > 0.5); m = bool(mom121[d] > 0)
-        calls[d] = {"qqq_sma200": a, "spy_sma200": b, "breadth50": c, "vote3": (b + m + c) >= 2}[name]
+        a = bool(qqq[d] > q_sma[d]); b = bool(spy[d] > s_sma[d]); c = bool(breadth[d] > 0.5); m = bool(mom121[d] > 0); dd = bool(q_dd[d] > -0.15)
+        calls[d] = {"qqq_sma200": a, "spy_sma200": b, "breadth50": c, "vote3": (b + m + c) >= 2, "qqq_dd15": dd}[name]
     return calls
 
 
@@ -73,7 +74,7 @@ def main(argv=None) -> int:
     p.add_argument("--scores", default="signal_audit_scores.csv")
     p.add_argument("--grid", default="sp500_skill_needed_combined.csv")
     p.add_argument("--sizes", default="5,20")
-    p.add_argument("--switches", default="none,qqq_sma200,spy_sma200,breadth50,vote3")
+    p.add_argument("--switches", default="none,qqq_sma200,qqq_dd15,spy_sma200,breadth50,vote3")
     p.add_argument("--random-runs", type=int, default=50)
     p.add_argument("--seed", type=int, default=42)
     p.add_argument("--out", default="forward_search")
@@ -184,7 +185,7 @@ def chart(eq: pd.DataFrame, summary: pd.DataFrame, path: str) -> None:
     s = summary[summary.source.isin(["SPY", "QQQ"]) == False]
     ax = axes[1]
     labels = {"score_ew": "稽核分數（等權）", "score_ridge": "稽核分數（ridge）", "momentum63": "63 日動能", "random": "隨機"}
-    marks = {"none": "o", "qqq_sma200": "s", "spy_sma200": "D", "breadth50": "^", "vote3": "v"}
+    marks = {"none": "o", "qqq_sma200": "s", "qqq_dd15": "P", "spy_sma200": "D", "breadth50": "^", "vote3": "v"}
     for i, (src, g) in enumerate(s.groupby("source")):
         col = PAL[i % len(PAL)] if src != "random" else "#999999"
         for _, r in g.iterrows():
