@@ -600,8 +600,9 @@ def chart(lift: pd.DataFrame, model: pd.DataFrame, eq: pd.DataFrame, n: int, pat
     ax_b2.bar(yrs, model["t3_ic_ex63"], color=cols, width=0.7)
     ax_b2.axhline(0, color="#888888", lw=0.9)
     ax_b2.axhline(model["t3_ic_ex63"].mean(), color=GREYS[0], lw=1, ls="--")
-    ax_b2.text(0.02, 0.97, f"年平均 IC {model['t3_ic_ex63'].mean():+.3f}（虛線）\n{int((model['t3_ic_ex63'] > 0).sum())}/{len(model)} 年為正", transform=ax_b2.transAxes, va="top", fontsize=8.5, color=GREYS[0])
+    ax_b2.text(0.98, 0.03, f"年平均 IC {model['t3_ic_ex63'].mean():+.3f}（虛線）\n{int((model['t3_ic_ex63'] > 0).sum())}/{len(model)} 年為正", transform=ax_b2.transAxes, va="bottom", ha="right", fontsize=8.5, color=GREYS[0])
     ax_b2.set_title("(b2) T3 分數對未來 63 日超額報酬的\n樣本外月度 Spearman IC（年平均）", loc="left", fontsize=10.5)
+    ax_b2.set_ylim(model["t3_ic_ex63"].min() * 1.35, model["t3_ic_ex63"].max() * 1.15)
     ax_b2.set_ylabel("IC")
     ax_b2.grid(axis="y", alpha=0.25); ax_b2.spines[["top", "right"]].set_visible(False)
 
