@@ -1,6 +1,6 @@
 # 18. 最終判定：哪些可用、哪些不可用
 
-[回索引](../README.md) · [完整報告](./ANALYSIS.md) · [上一節](./17-precursors.md)
+[回索引](../README.md) · [完整報告](./ANALYSIS.md) · [上一節](./17-precursors.md) · [下一節](./19-skill-needed.md)
 
 > 資料：S&P 500 成份股，Yahoo Finance 調整後收盤價。短期分析期間 2024-01-02 至 2026-10-16；長期回測 2000-01-03 至 2024-12-31。
 
@@ -40,4 +40,4 @@
 
 ---
 
-[回索引](../README.md) · [完整報告](./ANALYSIS.md) · [上一節](./17-precursors.md)
+[回索引](../README.md) · [完整報告](./ANALYSIS.md) · [上一節](./17-precursors.md) · [下一節](./19-skill-needed.md)
