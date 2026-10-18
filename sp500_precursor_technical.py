@@ -591,16 +591,16 @@ def chart(lift: pd.DataFrame, model: pd.DataFrame, eq: pd.DataFrame, n: int, pat
     ax_b1.plot(yrs, model["t2_auc_entry_and_cont"], color=PAL[1], lw=2, marker="s", ms=4, label="T2 進入且續漲")
     ax_b1.plot(yrs, model["t2_auc_cont_within_events"], color=PAL[2], lw=1.6, marker="^", ms=4, ls="--", label="T2 事件內：續漲 vs 不續漲")
     ax_b1.axhline(0.5, color="#888888", lw=0.9, ls=":")
-    ax_b1.set_ylim(0.3, 1.0)
+    ax_b1.set_ylim(0.25, 1.02)
     ax_b1.set_title("(b1) 樣本外 AUC（每年以前一年底前資料重訓）", loc="left", fontsize=10.5)
-    ax_b1.legend(frameon=False, fontsize=8, loc="lower left")
+    ax_b1.legend(frameon=False, fontsize=8, loc="upper center", bbox_to_anchor=(0.5, 0.93))
     ax_b1.grid(alpha=0.25); ax_b1.spines[["top", "right"]].set_visible(False)
     ax_b1.set_ylabel("AUC")
     cols = np.where(model["t3_ic_ex63"] >= 0, PAL[0], PAL[1])
     ax_b2.bar(yrs, model["t3_ic_ex63"], color=cols, width=0.7)
     ax_b2.axhline(0, color="#888888", lw=0.9)
     ax_b2.axhline(model["t3_ic_ex63"].mean(), color=GREYS[0], lw=1, ls="--")
-    ax_b2.annotate(f"平均 {model['t3_ic_ex63'].mean():+.3f}", (yrs.iloc[-1], model["t3_ic_ex63"].mean()), xytext=(0, 4), textcoords="offset points", ha="right", fontsize=8.5, color=GREYS[0])
+    ax_b2.text(0.02, 0.97, f"年平均 IC {model['t3_ic_ex63'].mean():+.3f}（虛線）\n{int((model['t3_ic_ex63'] > 0).sum())}/{len(model)} 年為正", transform=ax_b2.transAxes, va="top", fontsize=8.5, color=GREYS[0])
     ax_b2.set_title("(b2) T3 分數對未來 63 日超額報酬的\n樣本外月度 Spearman IC（年平均）", loc="left", fontsize=10.5)
     ax_b2.set_ylabel("IC")
     ax_b2.grid(axis="y", alpha=0.25); ax_b2.spines[["top", "right"]].set_visible(False)
@@ -622,8 +622,8 @@ def chart(lift: pd.DataFrame, model: pd.DataFrame, eq: pd.DataFrame, n: int, pat
     ys = []
     for v, lab, col in ends:
         y = math.log(v)
-        if ys and y - ys[-1] < 0.11:
-            y = ys[-1] + 0.11
+        if ys and y - ys[-1] < 0.13:
+            y = ys[-1] + 0.13
         ys.append(y)
         ax_c.annotate(f"{lab}  {v:.1f}x", (eq.index[-1], math.exp(y)), xytext=(6, 0), textcoords="offset points", color=col, fontsize=9, va="center")
     ax_c.set_xlim(eq.index[0], eq.index[-1] + pd.Timedelta(days=365 * 4))
