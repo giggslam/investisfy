@@ -144,7 +144,8 @@ def ic_summary(ic: pd.Series, prefix: str = "") -> dict:
 
 def feature_stats(ic1: pd.Series, ic3: pd.Series) -> dict:
     rec = ic_summary(ic1)
-    sign = 1.0 if (rec["mean_ic"] is np.nan or np.isnan(rec["mean_ic"]) or rec["mean_ic"] >= 0) else -1.0
+    m0 = rec["mean_ic"]
+    sign = -1.0 if (np.isfinite(m0) and m0 < 0) else 1.0
     rec["sign"] = int(sign)
     rec["mean_ic_signed_abs"] = sign * rec["mean_ic"]
     rec["t_signed_abs"] = sign * rec["t"]
@@ -278,8 +279,8 @@ def walk_forward(run: str, frames: dict[str, pd.DataFrame], cands: list[str], ma
         signs = np.sign(mean.reindex(selected)).to_numpy()
         best = tstat.abs().idxmax()
         best_sign = 1.0 if mean[best] >= 0 else -1.0
-        tr_rows = np.isin(sig, train_months) & np.isfinite(y)
-        te_rows = np.isin(sig, test_months)
+        tr_rows = np.isin(sig.to_numpy(), train_months.to_numpy()) & np.isfinite(y)
+        te_rows = np.isin(sig.to_numpy(), test_months.to_numpy())
         n_sel_row[te_rows] = len(selected)
         beta_all = fit_ridge(X[tr_rows], y_dm[tr_rows], lam)
         score_ridge_all[te_rows] = beta_all[0] + X[te_rows] @ beta_all[1:]
@@ -303,7 +304,7 @@ def walk_forward(run: str, frames: dict[str, pd.DataFrame], cands: list[str], ma
                             "ic_ridge_all": ym.ic_ridge_all.mean() if len(ym) else np.nan, "ic_best_single": ym.ic_best_single.mean() if len(ym) else np.nan, "n_test_months": int(len(ym)),
                             "ridge_top_coef": "|".join(f"{c}:{b:+.3f}" for c, b in sorted(zip(selected, beta[1:]), key=lambda t: -abs(t[1]))[:5]) if beta is not None else ""})
         print(f"  [{run}] {Y}: train {len(train_months)} months to {train_months.max().date()}, {len(selected)} selected, best {best} (t {tstat[best]:+.1f}) | OOS IC ew {yearly_rows[-1]['ic_ew']:+.3f}  ridge {yearly_rows[-1]['ic_ridge']:+.3f}  ridge_all {yearly_rows[-1]['ic_ridge_all']:+.3f}  best_single {yearly_rows[-1]['ic_best_single']:+.3f}", flush=True)
-    scored = np.isin(sig, mes_idx[mes_idx.year.isin(test_years)])
+    scored = np.isin(sig.to_numpy(), mes_idx[mes_idx.year.isin(test_years)].to_numpy())
     scores = pd.DataFrame({"signal_date": sig[scored], "ticker": np.asarray(mask.columns)[cols_i[scored]], "score_ew": score_ew[scored], "score_ridge": score_ridge[scored],
                            "score_ridge_all": score_ridge_all[scored], "n_selected": n_sel_row[scored]})
     return pd.DataFrame(yearly_rows), pd.DataFrame(monthly), scores
@@ -346,7 +347,9 @@ def main(argv=None) -> int:
 
     # 1. targets -----------------------------------------------------------------------------------
     fwd1, fwd3, exec_date, end1 = targets(px, eligible, mes)
-    assert (end1.dropna().index < end1.dropna()).all() and (exec_date.dropna().index < exec_date.dropna()).all()
+    e1, ex = end1.dropna(), exec_date.dropna()
+    assert (e1.to_numpy() > e1.index.to_numpy()).all() and (ex.to_numpy() > ex.index.to_numpy()).all(), "targets must lie strictly after the signal date"
+    assert (e1.to_numpy() > ex.reindex(e1.index).to_numpy()).all(), "target end must lie strictly after the execution date"
     n_t1 = int(fwd1.notna().any(axis=1).sum())
     print(f"targets: {n_t1} months with a 1-month target (last signal {fwd1.dropna(how='all').index[-1].date()}), {int(fwd3.notna().any(axis=1).sum())} with a 3-month target")
 
@@ -391,13 +394,14 @@ def main(argv=None) -> int:
     null = pd.DataFrame(null_rows)
     q_abs_ic = null.mean_ic.abs().quantile([0.95, 0.99])
     q_abs_t = null.t.abs().quantile([0.95, 0.99])
-    q_abs_ic_1324 = null.mean_ic_2013_2024_adj.quantile([0.95, 0.99])   # already sign-adjusted = |mean| in the window
+    # window statistics carry the full-sample sign (same procedure as for the real features), so they are sign-adjusted, not absolute
+    q_abs_ic_1324 = null.mean_ic_2013_2024_adj.quantile([0.95, 0.99])
     q_abs_t_1324 = null.t_2013_2024_adj.quantile([0.95, 0.99])
     bonf_z = NormalDist().inv_cdf(1 - 0.05 / N_TESTS / 2)
     null_pass = int(null.pass_real_signal.sum())
     print(f"\nnull ({args.null_runs} random features, seed {args.seed}): |mean IC| p95 {q_abs_ic[0.95]:.4f} p99 {q_abs_ic[0.99]:.4f} max {null.mean_ic.abs().max():.4f}; "
           f"|t| p95 {q_abs_t[0.95]:.2f} p99 {q_abs_t[0.99]:.2f} max {null.t.abs().max():.2f}; Bonferroni |t| for {N_TESTS} tests at 5%: {bonf_z:.2f}; "
-          f"2013-2024: |mean IC| p99 {q_abs_ic_1324[0.99]:.4f}, |t| p99 {q_abs_t_1324[0.99]:.2f}; null features passing the real-signal threshold: {null_pass}")
+          f"2013-2024 (sign-adjusted): mean IC p99 {q_abs_ic_1324[0.99]:.4f}, t p99 {q_abs_t_1324[0.99]:.2f}; null features passing the real-signal threshold: {null_pass}")
     features["above_null_p99_abs_ic"] = features.mean_ic_signed_abs > q_abs_ic[0.99]
     features["above_null_p99_abs_t"] = features.t_signed_abs > q_abs_t[0.99]
     features["above_bonferroni_t"] = features.t_signed_abs > bonf_z
@@ -459,7 +463,7 @@ def main(argv=None) -> int:
             ("max_abs_mean_ic_any_feature", features.mean_ic_signed_abs.max()),
             ("null_runs", args.null_runs), ("null_abs_mean_ic_p95", q_abs_ic[0.95]), ("null_abs_mean_ic_p99", q_abs_ic[0.99]), ("null_abs_mean_ic_max", null.mean_ic.abs().max()),
             ("null_abs_t_p95", q_abs_t[0.95]), ("null_abs_t_p99", q_abs_t[0.99]), ("null_abs_t_max", null.t.abs().max()),
-            ("null_2013_2024_abs_mean_ic_p99", q_abs_ic_1324[0.99]), ("null_2013_2024_abs_t_p99", q_abs_t_1324[0.99]), ("null_features_passing_real_signal", null_pass),
+            ("null_2013_2024_adj_mean_ic_p99", q_abs_ic_1324[0.99]), ("null_2013_2024_adj_t_p99", q_abs_t_1324[0.99]), ("null_features_passing_real_signal", null_pass),
             ("bonferroni_abs_t_57_tests", bonf_z), ("n_features_above_null_p99_abs_t", int(features.above_null_p99_abs_t.sum())), ("n_features_above_bonferroni", int(features.above_bonferroni_t.sum())),
             ("n_features_pass_real_signal_2013_2024", int(features.pass_real_signal.sum())), ("features_pass_real_signal_2013_2024", "|".join(features[features.pass_real_signal].feature)),
             ("n_features_pass_real_signal_fullsample", int(features.pass_real_signal_fullsample.sum())), ("features_pass_real_signal_fullsample", "|".join(features[features.pass_real_signal_fullsample].feature)),
@@ -505,13 +509,13 @@ def chart(features: pd.DataFrame, null: pd.DataFrame, wf: pd.DataFrame, summary:
     ax1.axvline(0, color=GREYS[1], lw=0.8, zorder=1)
     ax1.barh(y, f.mean_ic, color=[gcol[g] for g in f.group], height=0.7, zorder=2)
     for yi, (v, t, ok) in enumerate(zip(f.mean_ic, f.t, f.pass_real_signal)):
-        ax1.annotate(f"{v:+.3f} (t {t:+.1f}){' ✓' if ok else ''}", (v, yi), xytext=(4 if v >= 0 else -4, 0), textcoords="offset points", ha="left" if v >= 0 else "right", va="center", fontsize=6.8, color="#333333", zorder=3)
+        ax1.annotate(f"{v:+.3f} (t {t:+.1f}){' ＊通過' if ok else ''}", (v, yi), xytext=(4 if v >= 0 else -4, 0), textcoords="offset points", ha="left" if v >= 0 else "right", va="center", fontsize=6.8, color="#333333", zorder=3)
     ax1.set_yticks(y); ax1.set_yticklabels(f.label, fontsize=7.6)
     ax1.tick_params(axis="y", length=0)
     lim = max(abs(f.mean_ic.min()), abs(f.mean_ic.max()), IC_THRESHOLD) * 1.75
     ax1.set_xlim(-lim, lim); ax1.set_ylim(-0.8, len(f) - 0.2)
     ax1.set_xlabel("月度 Spearman IC 平均（對下月報酬，全樣本）", fontsize=9.5)
-    ax1.set_title(f"(1) 57 個候選特徵對下月報酬的月均 IC（2000 至 2024；基本面 2010 起）\n灰帶 = 200 個亂數特徵 |IC| 的第 99 百分位 ±{p99_ic:.3f}；虛線 = 預設門檻 ±0.03；✓ = 通過預設「真訊號」門檻", loc="left", fontsize=10.5)
+    ax1.set_title(f"(1) 57 個候選特徵對下月報酬的月均 IC（2000 至 2024；基本面 2010 起）\n灰帶 = 200 個亂數特徵 |IC| 的第 99 百分位 ±{p99_ic:.3f}；虛線 = 預設門檻 ±0.03；＊ = 通過預設「真訊號」門檻", loc="left", fontsize=10.5)
     ax1.legend(handles=[Patch(color=gcol[g], label=gname[g]) for g in ("technical", "fundamental", "momentum")] + [Patch(color="#dddddd", label="亂數特徵 99% 帶"), Line2D([], [], color=GREYS[0], ls="--", lw=1, label="±0.03 預設門檻")],
                frameon=False, fontsize=8.2, loc="lower right")
     ax1.grid(axis="x", alpha=0.25); ax1.spines[["top", "right"]].set_visible(False)
@@ -527,20 +531,23 @@ def chart(features: pd.DataFrame, null: pd.DataFrame, wf: pd.DataFrame, summary:
         ax2.axhline(v, color=GREYS[0], ls="--", lw=1)
     for v in (IC_THRESHOLD, -IC_THRESHOLD):
         ax2.axvline(v, color=GREYS[0], ls="--", lw=1)
-    ax2.annotate(f"亂數 |t| 第 99 百分位 {p99_t:.2f}", (ax2.get_xlim()[0], p99_t), xytext=(4, 3), textcoords="offset points", fontsize=7.8, color=GREYS[1])
-    ax2.annotate(f"Bonferroni 57 檢定 |t| {bonf:.2f}", (ax2.get_xlim()[0], bonf), xytext=(4, 3), textcoords="offset points", fontsize=7.8, color=GREYS[0])
-    top = features.sort_values("t_signed_abs", ascending=False).head(7)
-    placed = []
-    for _, r in top.iterrows():
-        dy = 6
-        for (px_, py_) in placed:
-            if abs(px_ - r.mean_ic) < 0.006 and abs(py_ - r.t) < 1.0:
-                dy += 9
-        placed.append((r.mean_ic, r.t))
-        ax2.annotate(r.label, (r.mean_ic, r.t), xytext=(5, dy), textcoords="offset points", fontsize=7.6, color=gcol[r.group])
+    xl = ax2.get_xlim(); yl = ax2.get_ylim()
+    ax2.set_ylim(yl[0] - 0.4, yl[1] + 0.4)
+    ax2.annotate(f"亂數 |t| 第 99 百分位 {p99_t:.2f}", (xl[1], p99_t), xytext=(-4, 3), textcoords="offset points", ha="right", fontsize=7.8, color=GREYS[1])
+    ax2.annotate(f"Bonferroni 57 檢定 |t| {bonf:.2f}", (xl[1], bonf), xytext=(-4, 3), textcoords="offset points", ha="right", fontsize=7.8, color=GREYS[0])
+    # label the 7 strongest features; labels are stacked to the right with a minimum vertical gap and a thin connector
+    # the strongest features all sit in the lower-left (negative IC); their labels are stacked in the empty upper-left corner
+    top = features.sort_values("t_signed_abs", ascending=False).head(7).sort_values("t")
+    gap = 0.4
+    x_lab = xl[0] + (xl[1] - xl[0]) * 0.02
+    y0 = -0.9 if top.t.mean() < 0 else 0.9
+    for i, (_, r) in enumerate(top.iterrows()):
+        y = y0 + i * gap if top.t.mean() < 0 else y0 - i * gap
+        ax2.annotate(r.label, (r.mean_ic, r.t), xytext=(x_lab, y), textcoords="data", fontsize=7.6, color=gcol[r.group], va="center", ha="left",
+                     arrowprops={"arrowstyle": "-", "color": gcol[r.group], "lw": 0.5, "alpha": 0.5, "shrinkB": 2})
     ax2.set_xlabel("月均 IC"); ax2.set_ylabel("t 統計量（月均 / 標準差 × √月數）")
     ax2.set_title("(2) t 統計量對月均 IC：真實特徵對亂數雲（點 = 一個特徵）", loc="left", fontsize=10.5)
-    ax2.legend(frameon=False, fontsize=8, loc="lower right")
+    ax2.legend(frameon=True, framealpha=0.92, edgecolor="none", fontsize=8, loc="lower right")
     ax2.grid(alpha=0.25); ax2.spines[["top", "right"]].set_visible(False)
 
     # (3) walk-forward OOS IC by year
@@ -556,17 +563,17 @@ def chart(features: pd.DataFrame, null: pd.DataFrame, wf: pd.DataFrame, summary:
     ax3.axhline(0, color=GREYS[1], lw=0.8)
     ax3.axhline(IC_THRESHOLD, color=GREYS[0], ls="--", lw=1); ax3.axhline(GRID_THRESHOLD, color=PAL[5], ls="--", lw=1)
     ax3.annotate("預設門檻 0.03", (len(wt) - 0.5, IC_THRESHOLD), xytext=(0, 3), textcoords="offset points", ha="right", fontsize=8, color=GREYS[0])
-    ax3.annotate("網格達標線 0.15（30% / −30% 需要的 IC）", (len(wt) - 0.5, GRID_THRESHOLD), xytext=(0, 3), textcoords="offset points", ha="right", fontsize=8, color=PAL[5])
+    ax3.annotate("網格達標線 0.15（30% / -30% 需要的 IC）", (len(wt) - 0.5, GRID_THRESHOLD), xytext=(0, 3), textcoords="offset points", ha="right", fontsize=8, color=PAL[5])
     ax3.set_xticks(x); ax3.set_xticklabels(wt.year.astype(int), fontsize=8, rotation=0)
     ymin = min(-0.06, float(np.nanmin(wt[[c for c, _, _ in series]].to_numpy())) * 1.25)
-    ax3.set_ylim(ymin, max(0.2, float(np.nanmax(wt[[c for c, _, _ in series]].to_numpy())) * 1.3))
+    ax3.set_ylim(ymin, max(0.24, float(np.nanmax(wt[[c for c, _, _ in series]].to_numpy())) * 1.3))
     txt = "\n".join(f"{lab}：{float(sv[f'oos_technical_{col[3:]}_mean_ic']):+.3f}（t {float(sv[f'oos_technical_{col[3:]}_t']):+.1f}，{sv[f'oos_technical_{col[3:]}_years_pos']} 年為正）" for col, lab, _ in series)
     if len(wa):
         txt += f"\n技術 + 基本面 Ridge：{float(sv['oos_tech_fund_ridge_mean_ic']):+.3f}（t {float(sv['oos_tech_fund_ridge_t']):+.1f}，{sv['oos_tech_fund_ridge_years_pos']} 年為正）"
     ax3.text(0.01, 0.97, txt, transform=ax3.transAxes, va="top", ha="left", fontsize=8, color="#333333")
     ax3.set_ylabel("樣本外月均 IC")
     ax3.set_title("(3) 錨定走動式合成訊號：每年 1 月只用前一年底前已知的報酬重選、重估，當年逐月樣本外 IC", loc="left", fontsize=10.5)
-    ax3.legend(frameon=False, fontsize=7.8, loc="lower left", ncol=2)
+    ax3.legend(frameon=False, fontsize=7.8, loc="upper left", bbox_to_anchor=(0.0, -0.09), ncol=4)
     ax3.grid(axis="y", alpha=0.25); ax3.spines[["top", "right"]].set_visible(False)
 
     # (4) sub-period IC of the top 8 features (sign-adjusted)

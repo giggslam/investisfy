@@ -72,6 +72,7 @@ def spearman(a: pd.Series, b: pd.Series) -> float:
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--scores", default="signal_audit_scores.csv")
+    p.add_argument("--score-cols", default="score_ew,score_ridge")
     p.add_argument("--grid", default="sp500_skill_needed_combined.csv")
     p.add_argument("--sizes", default="5,20")
     p.add_argument("--switches", default="none,qqq_sma200,qqq_dd15,spy_sma200,breadth50,vote3")
@@ -103,7 +104,7 @@ def main(argv=None) -> int:
         spy_next[mes[k]] = spy.iloc[b] / spy.iloc[a] - 1
 
     sc = pd.read_csv(args.scores, parse_dates=["signal_date"])
-    score_cols = [c for c in sc.columns if c.startswith("score_")]
+    score_cols = [c for c in args.score_cols.split(",") if c in sc.columns]
     first = sc.signal_date.min()
     months = [d for d in mes if d >= first and d in fwd]
     print(f"scores {args.scores}: {score_cols}, {sc.signal_date.nunique()} month-ends from {first.date()}; trading {len(months)} months")
@@ -204,9 +205,17 @@ def chart(eq: pd.DataFrame, summary: pd.DataFrame, path: str) -> None:
     ax.legend(frameon=False, fontsize=8, ncol=2, loc="upper right"); ax.grid(alpha=0.25); ax.spines[["top", "right"]].set_visible(False)
     ax = axes[0]
     keys = [c for c in eq.columns if c.endswith("_top20_none") or c.endswith("_top20_qqq_sma200")] + ["SPY", "QQQ"]
+    def nice(k):
+        base = {"score_ew": "稽核分數（等權）", "score_ridge": "稽核分數（ridge）", "momentum63": "63 日動能"}
+        for b, lab in base.items():
+            if k.startswith(b):
+                rest = k[len(b) + 1:]
+                n, sw = rest.split("_", 1)
+                return f"{lab} {n.replace('top', '前 ')} 隻" + ("" if sw == "none" else "＋200 日線開關")
+        return k
     for i, k in enumerate(keys):
         ax.plot(eq.index, eq[k], lw=1.3 if "score" in k else 1.0, ls="--" if k in ("SPY", "QQQ") else "-", color=PAL[i % len(PAL)] if k not in ("SPY", "QQQ") else ("#555555" if k == "SPY" else "#999999"))
-        ax.annotate(k, (eq.index[-1], eq[k].dropna().iloc[-1]), xytext=(4, 0), textcoords="offset points", fontsize=7.5, va="center")
+        ax.annotate(nice(k), (eq.index[-1], eq[k].dropna().iloc[-1]), xytext=(4, 0), textcoords="offset points", fontsize=7.5, va="center")
     ax.set_yscale("log"); ax.set_ylabel("淨值（倍，對數座標）")
     ax.set_title("前 20 隻：稽核分數對 63 日動能，無開關與 QQQ 200 日線開關", loc="left", fontsize=11)
     ax.grid(alpha=0.25); ax.spines[["top", "right"]].set_visible(False)
