@@ -224,3 +224,7 @@ precursor_events.csv
 precursor_events_top10.csv
 edgar_cache/
 volume_long_cache.csv
+
+# section 21 raw insider download (71 MB, rebuilt by: python sp500_free_signals.py fetch-form4)
+free_signals_form4.csv
+form4_tmp/
