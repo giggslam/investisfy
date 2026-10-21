@@ -278,15 +278,14 @@ def chart(features: pd.DataFrame, wf: pd.DataFrame, monthly: pd.DataFrame, summa
         w = wf[wf.run == run]
         if w.empty:
             continue
-        # a run in which no feature ever reaches |t| >= 2 in training has no selected-feature composite: show the all-feature ridge
-        key, series, suffix = ("ridge", w.ic_ridge, "") if w.n_selected.gt(0).any() else ("ridge_all", w.ic_ridge_all, "，無篩選")
-        ax2.plot(w.year, series, marker="o", ms=4, lw=1.6, color=col, label=f"{lab}{suffix}：平均 {float(sv[f'oos_{run}_{key}_mean_ic']):+.3f}")
+        # the all-feature ridge is defined every year; the |t| >= 2 selection picks nothing in most years from a 2010 start
+        ax2.plot(w.year, w.ic_ridge_all, marker="o", ms=4, lw=1.6, color=col, label=f"{lab}：平均 {float(sv[f'oos_{run}_ridge_all_mean_ic']):+.3f}（t {float(sv[f'oos_{run}_ridge_all_t']):+.1f}）")
     ax2.axhline(0, color=GREYS[2], lw=0.8)
     ax2.axhline(A.IC_THRESHOLD, color=GREYS[0], ls="--", lw=1)
     ax2.axhline(A.GRID_THRESHOLD, color=PAL[3], ls=":", lw=1.2)
     ax2.annotate("達標線 0.15", (ax2.get_xlim()[1] - 0.3, A.GRID_THRESHOLD), xytext=(0, -9), textcoords="offset points", fontsize=8, color=PAL[3], ha="right")
     ax2.set_ylim(min(-0.08, ax2.get_ylim()[0]), 0.17)
-    ax2.set_title("走動式合成（Ridge，|t| ≥ 2 篩選後）逐年樣本外 IC，2013 至 2024 年", loc="left", fontsize=11, fontweight="bold")
+    ax2.set_title("走動式合成（Ridge，全部候選特徵）逐年樣本外 IC，2013 至 2024 年", loc="left", fontsize=11, fontweight="bold")
     ax2.set_ylabel("年平均月度 IC", fontsize=9.5)
     ax2.legend(fontsize=8.3, frameon=False, loc="lower left")
     for s in ("top", "right"):
@@ -295,8 +294,10 @@ def chart(features: pd.DataFrame, wf: pd.DataFrame, monthly: pd.DataFrame, summa
     # panel 3: paired monthly difference tech_free - technical, 12-month rolling mean
     ax3 = fig.add_subplot(gs[1, 1])
     a = monthly[monthly.run == "technical"].set_index("signal_date"); b = monthly[monthly.run == "tech_free"].set_index("signal_date")
-    for col, lab, colr in (("ic_ridge", "Ridge（篩選後）", PAL[0]), ("ic_ridge_all", "Ridge（全部特徵）", PAL[1]), ("ic_ew", "等權", PAL[2])):
+    for col, lab, colr in (("ic_ridge_all", "Ridge（全部特徵）", PAL[1]),):
         d = (b[col] - a[col]).dropna().sort_index()
+        if d.empty:
+            continue
         ax3.plot(d.index, d.rolling(12).mean(), lw=1.6, color=colr, label=f"{lab}：平均 {float(sv[f'paired_tech_free_minus_technical_{col[3:]}_mean']):+.4f}（t {float(sv[f'paired_tech_free_minus_technical_{col[3:]}_t']):+.1f}）")
     ax3.axhline(0, color=GREYS[2], lw=0.8)
     ax3.set_title("加入 8 個新訊號後合成 IC 的增量（同月配對差，12 個月滾動平均）", loc="left", fontsize=11, fontweight="bold")

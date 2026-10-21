@@ -1,9 +1,8 @@
 # 20. 按第 19 節流程正向找「年回報 30%、MDD 30% 以內」的策略
 
-[回索引](../README.md) · [完整報告](./ANALYSIS.md) · [上一節](./19-skill-needed.md)
+[回索引](../README.md) · [完整報告](./ANALYSIS.md) · [上一節](./19-skill-needed.md) · [下一節](./21-free-signals.md)
 
 > 資料：S&P 500 成份股，Yahoo Finance 調整後收盤價。短期分析期間 2024-01-02 至 2026-10-16；長期回測 2000-01-03 至 2024-12-31。
-
 
 第 19 節說反推不行，正確的順序是：先訂門檻、再量每個候選訊號的樣本外 IC 與命中率、對照亂數、最後才回測。這一節照做一遍，看現有免費資料裡能找到什麼。三支腳本：`sp500_signal_audit.py`（橫截面訊號 IC 稽核）、`sp500_timing_audit.py`（擇時命中率稽核）、`sp500_forward_search.py`（把稽核出來的分數配開關實際交易，放上第 19.3 節網格）。
 
@@ -116,4 +115,4 @@
 
 ---
 
-[回索引](../README.md) · [完整報告](./ANALYSIS.md) · [上一節](./19-skill-needed.md)
+[回索引](../README.md) · [完整報告](./ANALYSIS.md) · [上一節](./19-skill-needed.md) · [下一節](./21-free-signals.md)
