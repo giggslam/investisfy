@@ -205,3 +205,26 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# downloaded price cache (regenerate with sp500_momentum.py)
+prices_cache.csv
+sp500_momentum_history.csv
+prices_long_cache.csv
+spy_long_cache.csv
+membership_long.pkl
+qqq_full_cache.csv
+spy_full_cache.csv
+irx_cache.csv
+tlt_full_cache.csv
+gld_full_cache.csv
+ief_full_cache.csv
+vix_cache.csv
+cross_asset_cache.csv
+precursor_events.csv
+precursor_events_top10.csv
+edgar_cache/
+volume_long_cache.csv
+
+# section 21 raw insider download (71 MB, rebuilt by: python sp500_free_signals.py fetch-form4)
+free_signals_form4.csv
+form4_tmp/
