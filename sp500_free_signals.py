@@ -306,6 +306,8 @@ def _latest_at(series: pd.DataFrame, mes: pd.DatetimeIndex, max_age: int = STALE
     """For each signal date the latest row (by filed <= t) of a (end, filed, val) table; rows whose end is older than
     max_age days at t are dropped.  Returns (signal_date, end, val) with NaN where nothing is usable."""
     s = series.sort_values("filed").reset_index(drop=True)
+    s = s.assign(filed=s.filed.astype("datetime64[ns]"), end=s.end.astype("datetime64[ns]"))
+    mes = pd.DatetimeIndex(mes).astype("datetime64[ns]")
     # the value usable at t is the one with the largest filed <= t, but a later filing may report an OLDER period
     # (amendments); keep, per filed order, the running maximum period end
     s["end_cum"] = s.end.cummax()
