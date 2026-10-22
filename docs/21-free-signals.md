@@ -1,6 +1,6 @@
 # 21. 剩下的三種免費資料：XBRL 資產負債、Form 4 內部人、FINRA 空單
 
-[回索引](../README.md) · [完整報告](./ANALYSIS.md) · [上一節](./20-forward-search.md)
+[回索引](../README.md) · [完整報告](./ANALYSIS.md) · [上一節](./20-forward-search.md) · [下一節](./22-screens.md)
 
 > 資料：S&P 500 成份股，Yahoo Finance 調整後收盤價。短期分析期間 2024-01-02 至 2026-10-16；長期回測 2000-01-03 至 2024-12-31。
 
@@ -75,4 +75,4 @@
 
 ---
 
-[回索引](../README.md) · [完整報告](./ANALYSIS.md) · [上一節](./20-forward-search.md)
+[回索引](../README.md) · [完整報告](./ANALYSIS.md) · [上一節](./20-forward-search.md) · [下一節](./22-screens.md)

@@ -377,7 +377,7 @@ def chart(features: pd.DataFrame, portfolios: pd.DataFrame, equity: pd.DataFrame
         ax2.plot(s.index, s, lw=1.5 if not k.startswith(("SPY", "QQQ")) else 1.2, color=c, ls="-" if not k.startswith(("SPY", "QQQ")) else "--", label=lab + extra)
     ax2.set_yscale("log")
     ax2.set_title("通過者等權組合（每月底換股、次日收盤成交、成本 0.1%）對 SPY、QQQ", loc="left", fontsize=10.5, fontweight="bold")
-    ax2.set_ylabel("淨值（起點 = 1，對數）", fontsize=9.5)
+    ax2.set_ylabel("淨值（各序列自各自起點 = 1，對數）", fontsize=9.5)
     ax2.legend(fontsize=8, frameon=False, loc="upper left")
     for s in ("top", "right"):
         ax2.spines[s].set_visible(False)
